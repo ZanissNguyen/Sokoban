@@ -1,21 +1,180 @@
 import pygame
 import threading
 
-pygame.init()
+# pygame.init()
+
+def render_map(walls, boxes, player, goal, map_width, map_height):
+    map_template = [[' ' for _ in range(map_width)] for _ in range(map_height)]
+    new_map = [list(row) for row in map_template]
+    for (x, y) in walls: 
+        new_map[y][x] = '#'
+    for (x, y) in goal: new_map[y][x] = '.'
+    for (x, y) in boxes:
+        new_map[y][x] = '*' if (x, y) in goal else '$'
+    px, py = player
+    new_map[py][px] = '+' if (px, py) in goal else '@'
+    return [''.join(row) for row in new_map]
+
+def is_corner_deadlock(x, y, walls, goals):
+    if (x, y) in goals: 
+        return False
+    left_wall = (x-1, y) in walls
+    right_wall = (x+1, y) in walls
+    up_wall = (x, y-1) in walls
+    down_wall = (x, y+1) in walls
+    return (left_wall or right_wall) and (up_wall or down_wall)
+
+def is_edge_deadlock(x, y, walls, goals):
+    if (x, y) in goals:
+        return False
+
+    # --- Vertical wall check ---
+    if (x-1, y) in walls or (x+1, y) in walls:
+        # Box is against a vertical wall, scan entire column
+        same_col_goals = any(gx == x for gx, gy in goals)
+        if not same_col_goals:
+            return True
+
+    # --- Horizontal wall check ---
+    if (x, y-1) in walls or (x, y+1) in walls:
+        # Box is against a horizontal wall, scan entire row
+        same_row_goals = any(gy == y for gx, gy in goals)
+        if not same_row_goals:
+            return True
+
+    return False
+
+def is_block_2x2_deadlock(x, y, boxes, walls, goals):
+    if (x, y) in goals:
+        return False
+
+    # 4 possible 2x2 squares containing (x, y)
+    offsets = [(0, 0), (-1, 0), (0, -1), (-1, -1)]
+    for dx, dy in offsets:
+        square = [
+            (x + dx, y + dy),
+            (x + dx + 1, y + dy),
+            (x + dx, y + dy + 1),
+            (x + dx + 1, y + dy + 1)
+        ]
+        if all(pos in walls or pos in boxes for pos in square):
+            # check if any goal inside → if yes, it's not deadlock
+            if not any(pos in goals for pos in square):
+                return True
+    return False
 
 # state define
 # map - 2D array of chars
 # boxes - list of (x,y) positions
 # player - (x,y) position
+class State:
+    def __init__(self, map, boxes, walls, player, goal, path):
+        self.map = map
+        self.boxes = boxes
+        self.walls = walls
+        self.player = player
+        self.goal = goal
+        self.path = path
+
+    def __eq__(self, other):
+        return isinstance(other, State) and self.player == other.player and set(self.boxes) == set(other.boxes)
+
+    def __hash__(self):
+        # Sort boxes so order doesn't matter
+        return hash((self.player, tuple(sorted(self.boxes))))
+
+    def to_str(self):
+        pass
+
+    def is_win(self, goal):
+        # check if all boxes are on goals
+        return set(goal).issubset(set(self.boxes))
+
+    def is_deadlock(self):
+        for (x, y) in self.boxes:
+            if is_corner_deadlock(x, y, self.walls, self.goal):
+                return True
+            # tạm thời bị disable
+            # if is_edge_deadlock(x, y, self.walls, self.goal):
+            #     return True
+            if is_block_2x2_deadlock(x, y, self.boxes, self.walls, self.goal):
+                return True
+        return False
+
+    def explore_neighbors(self):
+        # explore neighbors of current state
+        # return a list of valid states
+        # player go up, down, left, right
+        # if hit wall, ignore
+        # if hit box, check if box can be pushed
+
+        neighbors = []
+        for dir in direction:
+            new_state = self.move(dir)
+            if new_state is not None:
+                neighbors.append(new_state)
+
+        return neighbors
+
+    def move(self, direction):
+
+        new_boxes = self.boxes.copy()  
+        new_player = self.player
+
+        if (direction == "up"):
+            new_player = (new_player[0], new_player[1] - 1)
+        elif (direction == "down"):
+            new_player = (new_player[0], new_player[1] + 1)
+        elif (direction == "left"):
+            new_player = (new_player[0] - 1, new_player[1])
+        elif (direction == "right"):
+            new_player = (new_player[0] + 1, new_player[1])
+        else:    
+            # print("Invalid direction")
+            return None # invalid direction, ignore
+        
+        if (self.walls.__contains__(new_player)):
+            # print("Hit wall")
+            return None # hit wall, ignore
+        
+        if (new_boxes.__contains__(new_player)):
+            if (direction == "up"):
+                new_box = (new_player[0], new_player[1] - 1)
+            elif (direction == "down"):
+                new_box = (new_player[0], new_player[1] + 1)
+            elif (direction == "left"):
+                new_box = (new_player[0] - 1, new_player[1])
+            elif (direction == "right"):
+                new_box = (new_player[0] + 1, new_player[1])
+
+            # print(self.walls)
+            # print(new_box)
+            # print(boxes)
+            if (self.walls.__contains__(new_box) or new_boxes.__contains__(new_box)):
+                # print("Box stuck")
+                return None # box stuck, ignore
+            else:
+                new_boxes.remove(new_player)
+                new_boxes.append(new_box)
+                
+                # print("Move box")
+                # update map
+                new_map = render_map(self.walls, new_boxes, new_player, self.goal,
+                                len(self.map[0]), len(self.map))
+
+                return State(new_map, new_boxes, self.walls, new_player, self.goal, self.path + [direction])
+        
+        # print("Move player")
+        new_map = render_map(self.walls, new_boxes, new_player, self.goal,
+                                len(self.map[0]), len(self.map))
+        
+        return State(new_map, new_boxes, self.walls, new_player, self.goal, self.path + [direction])
+    
 # goal - list of (x,y) positions
 result = { # return value for threading function
     "BrFS": {},
     "Astar": {}
 }
-map = []
-player = (0, 0)
-boxes = set()
-goal = set()
 
 game_state = ["choose_testcase", "solving", "solved"]
 
@@ -31,22 +190,6 @@ tile_char = {
 
 direction = ['up', 'down', 'left', 'right']
 
-def is_win(map):
-    # check if all boxes are on goals
-    return goal.issubset(boxes)
-
-def is_deadlock(map):
-    # check if any box is in a deadlock position
-    pass
-
-def explore_neighbors(map):
-    # explore neighbors of current state
-    # return a list of valid states
-    # player go up, down, left, right
-    # if hit wall, ignore
-    # if hit box, check if box can be pushed
-    pass
-
 def load_testcase(tc):
     # return map, start, goal from testcases/tc_<id>.txt
     # parse it to global variables
@@ -57,15 +200,42 @@ def load_testcase(tc):
 
     pass
 
-def BrFS(map, start, goal):
+def BrFS(init_state, goal):
     # implement Breadth-First Search algorithm
     # return path (up, down, left, right) from start to goal
     # if no path, return None
+    queue = [init_state]
+    visited = set()
+    visited.add(init_state)
 
+    while len(queue) != 0:
+        explored = queue.pop(0).explore_neighbors()
+        for state in explored:
+            if state.is_deadlock():
+                continue
+
+            if state in visited:
+                continue
+            
+            if state.is_win(goal):
+                result['BrFS'] = {
+                    'is_solved': True,
+                    'is_complete': True, 
+                    'path': state.path, 
+                    'explored_node': 0, #un-done
+                    'time_taken': 0,    #un-done
+                    'memory_used': 0    #un-done
+                }
+                return
+            
+            queue.append(state)
+            visited.add(state)
+
+    # no solution
     # return flag, path, explored_nodes, time_taken, memory_used
     result['BrFS'] = {
         'is_solved': False,
-        'is_complete': False, 
+        'is_complete': True, 
         'path': [], 
         'explored_node': 0,
         'time_taken': 0,
@@ -98,74 +268,118 @@ def A_star_g(map, start, goal):
 def draw(map, offset_x = 0):
     # offset x for drawing multiple maps side by side
     # display map using pygame 
+    # without pygame:
+    for row in map:
+        print(row)
 
-    pygame.display.update()
-    pygame.time.delay(100)
+    # pygame.display.update()
+    # pygame.time.delay(100)
     pass
 
-def replay_path(start_map, path):
+def replay_path(init_state, path):
     # replay path step by step
-    # return list of map
-    return []
+    # return list of map and drawing them having delay
+    result = [init_state]
+    draw(init_state.map, 0)
+    state = init_state
+    for dir in path:
+        state = state.move(dir)
+        print(dir)
+        draw(state.map, 0)
+        result.append(state)
+
+    return result
 
 if __name__ == "__main__":
 
     running = True
-    pygame.display.set_caption("Sokoban Solver")
+    # pygame.display.set_caption("Sokoban Solver")
 
     brfs_draw_done = False
     astar_draw_done = False
 
-    state = game_state[0]
+    state = game_state[1] #for debugging
     testcase = 0
-    starting_map = []
+    # need to code the testcase loader
+    starting_map = [
+        "#### ####",
+        "#  ###  #",
+        "# $ * $ #",
+        "#   +   #",
+        "### .$###",
+        "  # . #  ",
+        "  #####  "
+    ]
+    init_boxes = []
+    init_walls = []
+    init_player = (0,0)
+    init_goal = []
+    for y, row in enumerate(starting_map):
+        for x, c in enumerate(row):
+            if (c == '$' or c == '*'):
+                init_boxes.append((x, y))
+            if (c == '.' or c == '*' or c == '+'):
+                init_goal.append((x, y))
+            if (c == '@' or c == '+'):
+                init_player = (x, y)
+            if (c == '#'): 
+                init_walls.append((x,y))
+
+    init_state = State(starting_map, init_boxes, init_walls, init_player, init_goal, [])
     is_solving = False
 
-    while running:
+    # while running:
 
-        # check for game_state
-        if state == game_state[0]:
-        #     display testcase selection screen
-        #     event handle
-            pass
-        elif state == game_state[1]:
-        #     # run BrFS and A* in separate threads
-            if not is_solving:
-                is_solving = True
-                brfs_thread = threading.Thread(target=lambda: BrFS(starting_map, player, goal))
-                astar_thread = threading.Thread(target=lambda: A_star(starting_map, player
-                , goal))
-                brfs_thread.start()  
-                astar_thread.start()
-
-            # result:
-            brfs_done = result['BrFS']['is_complete']
-            brfs_path = result['BrFS']['path']
-
-            astar_done = result['Astar']['is_complete']
-            astar_path = result['Astar']['path']
-            # draw
-            if brfs_done and not brfs_draw_done:
-                # Animate BrFS path step by step
-                brfs_map = replay_path(starting_map, brfs_path)
-                for m in brfs_map:
-                    draw(map, 0)
-            if astar_done and not astar_draw_done:
-                # Animate A* path step by step
-                astar_map = replay_path(starting_map, astar_path)
-                for m in astar_map:
-                    draw(map, 0) #offset = window_width / 2
-            
-            # if both completed display button analysis
-            # or just go to the next state
-            if brfs_draw_done and astar_draw_done:
-                state = game_state[2]
-        elif state == game_state[2]:
-            # display both status: is solve, some evaluation information
-            pass
-
-        # for event in pygame.event.get():
-        #     if event.type == pygame.QUIT:
-        #         running = False
-        
+    # check for game_state
+    if state == game_state[0]:
+    #     display testcase selection screen
+    #     event handle
         pass
+    elif state == game_state[1]:
+        # run BrFS and A* in separate threads
+        if not is_solving:
+            is_solving = True
+            brfs_thread = threading.Thread(target=lambda: BrFS(init_state, init_goal))
+            # astar_thread = threading.Thread(target=lambda: A_star(starting_map, goal))
+            brfs_thread.start()  
+            # astar_thread.start()
+            brfs_thread.join()
+
+        # result:
+        brfs_done = result['BrFS']['is_complete']
+
+        if not brfs_done==None and brfs_done == True:
+            if not result['BrFS']['is_solved']:
+                print("No Solution")
+            else:
+                brfs_path = result['BrFS']['path']
+                print(brfs_path)
+                replay_path(init_state, brfs_path)
+
+        # astar_done = result['Astar']['is_complete']
+        # astar_path = result['Astar']['path']
+        # draw
+        # if brfs_done and not brfs_draw_done:
+        #     # Animate BrFS path step by step
+        #     brfs_map = replay_path(starting_map, brfs_path)
+        #     for m in brfs_map:
+        #         draw(map, 0)
+        # if astar_done and not astar_draw_done:
+        #     # Animate A* path step by step
+        #     astar_map = replay_path(starting_map, astar_path)
+        #     for m in astar_map:
+        #         draw(map, 0) #offset = window_width / 2
+        
+        # if both completed display button analysis
+        # or just go to the next state
+        if brfs_draw_done and astar_draw_done:
+            state = game_state[2]
+    elif state == game_state[2]:
+        # display both status: is solve, some evaluation information
+        pass
+
+    # for event in pygame.event.get():
+    #     if event.type == pygame.QUIT:
+    #         running = False
+    
+    pass
