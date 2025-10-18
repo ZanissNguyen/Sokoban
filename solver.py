@@ -1,7 +1,11 @@
 import pygame
-import threading
+from multiprocessing import Process, Manager
+import os
+import psutil
+import time
 
 # pygame.init()
+
 
 def render_map(walls, boxes, player, goal, map_width, map_height):
     map_template = [[' ' for _ in range(map_width)] for _ in range(map_height)]
@@ -171,10 +175,6 @@ class State:
         return State(new_map, new_boxes, self.walls, new_player, self.goal, self.path + [direction])
     
 # goal - list of (x,y) positions
-result = { # return value for threading function
-    "BrFS": {},
-    "Astar": {}
-}
 
 game_state = ["choose_testcase", "solving", "solved"]
 
@@ -200,31 +200,49 @@ def load_testcase(tc):
 
     pass
 
-def BrFS(init_state, goal):
+def BrFS(result, init_state, goal):
     # implement Breadth-First Search algorithm
     # return path (up, down, left, right) from start to goal
     # if no path, return None
+    generated_node = 0
+    expand_node = 0
+    revisited_node = 0
+    start_time = time.time()
+    max_memory_usage = 0
+    baseline_memory = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
+
     queue = [init_state]
     visited = set()
     visited.add(init_state)
 
     while len(queue) != 0:
+        # Đo memory hiện tại
+        current_memory = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024) - baseline_memory
+        max_memory_usage = max(max_memory_usage, current_memory)
+
+        # explore node (state) found
         explored = queue.pop(0).explore_neighbors()
+        expand_node += 1
         for state in explored:
+            generated_node += 1
             if state.is_deadlock():
                 continue
 
             if state in visited:
+                revisited_node += 1
                 continue
             
             if state.is_win(goal):
+                end_time = time.time()
                 result['BrFS'] = {
                     'is_solved': True,
                     'is_complete': True, 
-                    'path': state.path, 
-                    'explored_node': 0, #un-done
-                    'time_taken': 0,    #un-done
-                    'memory_used': 0    #un-done
+                    'path': state.path,
+                    'expand_node': expand_node, 
+                    'generated_node': generated_node, #un-done
+                    'revisited_node': revisited_node,#un-done
+                    'time_taken': end_time - start_time,    #un-done
+                    'memory_used': max_memory_usage    #un-done
                 }
                 return
             
@@ -237,13 +255,15 @@ def BrFS(init_state, goal):
         'is_solved': False,
         'is_complete': True, 
         'path': [], 
-        'explored_node': 0,
+        'expand_node': 0,
+        'generated_node': 0,
+        'revisited_node': 0,
         'time_taken': 0,
         'memory_used': 0
     }
     pass
 
-def A_star(map, start, goal):
+def A_star(result, init_map, goal):
     # implement A* algorithm
 
     # return solved flag, path, explored_nodes, time_taken, memory_used
@@ -251,7 +271,9 @@ def A_star(map, start, goal):
         'is_solved': False,
         'is_complete': False, 
         'path': [], 
-        'explored_node': 0,
+        'expand_node': 0,
+        'generated_node': 0,
+        'revisited_node': 0,#un-done
         'time_taken': 0,
         'memory_used': 0
     }
@@ -291,95 +313,106 @@ def replay_path(init_state, path):
     return result
 
 if __name__ == "__main__":
+    with Manager() as manager:
+        result = manager.dict()
+        result["BrFS"] = manager.dict()
+        result["Astar"] = manager.dict()
 
-    running = True
-    # pygame.display.set_caption("Sokoban Solver")
+        running = True
+        # pygame.display.set_caption("Sokoban Solver")
 
-    brfs_draw_done = False
-    astar_draw_done = False
+        brfs_draw_done = False
+        astar_draw_done = False
 
-    state = game_state[1] #for debugging
-    testcase = 0
-    # need to code the testcase loader
-    starting_map = [
-        "#### ####",
-        "#  ###  #",
-        "# $ * $ #",
-        "#   +   #",
-        "### .$###",
-        "  # . #  ",
-        "  #####  "
-    ]
-    init_boxes = []
-    init_walls = []
-    init_player = (0,0)
-    init_goal = []
-    for y, row in enumerate(starting_map):
-        for x, c in enumerate(row):
-            if (c == '$' or c == '*'):
-                init_boxes.append((x, y))
-            if (c == '.' or c == '*' or c == '+'):
-                init_goal.append((x, y))
-            if (c == '@' or c == '+'):
-                init_player = (x, y)
-            if (c == '#'): 
-                init_walls.append((x,y))
+        state = game_state[1] #for debugging
+        testcase = 0
+        # need to code the testcase loader
+        starting_map = [
+            "#################",
+            "#  #  #  #  #   #",
+            "#.$   #  #.$    #",
+            "#  #.$ .$   #   #",
+            "# @#  #  #  #   #",
+            "#################",
+        ]
+        init_boxes = []
+        init_walls = []
+        init_player = (0,0)
+        init_goal = []
+        for y, row in enumerate(starting_map):
+            for x, c in enumerate(row):
+                if (c == '$' or c == '*'):
+                    init_boxes.append((x, y))
+                if (c == '.' or c == '*' or c == '+'):
+                    init_goal.append((x, y))
+                if (c == '@' or c == '+'):
+                    init_player = (x, y)
+                if (c == '#'): 
+                    init_walls.append((x,y))
 
-    init_state = State(starting_map, init_boxes, init_walls, init_player, init_goal, [])
-    is_solving = False
+        init_state = State(starting_map, init_boxes, init_walls, init_player, init_goal, [])
+        is_solving = False
 
-    # while running:
+        # while running:
 
-    # check for game_state
-    if state == game_state[0]:
-    #     display testcase selection screen
-    #     event handle
-        pass
-    elif state == game_state[1]:
-        # run BrFS and A* in separate threads
-        if not is_solving:
-            is_solving = True
-            brfs_thread = threading.Thread(target=lambda: BrFS(init_state, init_goal))
-            # astar_thread = threading.Thread(target=lambda: A_star(starting_map, goal))
-            brfs_thread.start()  
-            # astar_thread.start()
-            brfs_thread.join()
+        # check for game_state
+        if state == game_state[0]:
+        #     display testcase selection screen
+        #     event handle
+            pass
+        elif state == game_state[1]:
 
-        # result:
-        brfs_done = result['BrFS']['is_complete']
+            # run BrFS and A* in separate threads
+            if not is_solving:
+                is_solving = True
+                brfs_process = Process(target=BrFS, args=(result, init_state, init_goal))
+                # astar_thread = threading.Thread(target=lambda: A_star(starting_map, goal))
+                brfs_process.start()  
+                # astar_thread.start()
+                brfs_process.join()
 
-        if not brfs_done==None and brfs_done == True:
-            if not result['BrFS']['is_solved']:
-                print("No Solution")
-            else:
-                brfs_path = result['BrFS']['path']
-                print(brfs_path)
-                replay_path(init_state, brfs_path)
+            # result:
+            print(result)
+            brfs_done = result['BrFS']['is_complete']
 
-        # astar_done = result['Astar']['is_complete']
-        # astar_path = result['Astar']['path']
-        # draw
-        # if brfs_done and not brfs_draw_done:
-        #     # Animate BrFS path step by step
-        #     brfs_map = replay_path(starting_map, brfs_path)
-        #     for m in brfs_map:
-        #         draw(map, 0)
-        # if astar_done and not astar_draw_done:
-        #     # Animate A* path step by step
-        #     astar_map = replay_path(starting_map, astar_path)
-        #     for m in astar_map:
-        #         draw(map, 0) #offset = window_width / 2
+            if not brfs_done==None and brfs_done == True:
+                if not result['BrFS']['is_solved']:
+                    print("No Solution")
+                else:
+                    brfs_path = result['BrFS']['path']
+                    print(brfs_path)
+                    replay_path(init_state, brfs_path)
+
+                    print("Expand Node: ", result['BrFS']['expand_node'])
+                    print("Generated Node: ", result['BrFS']['generated_node'])
+                    print("Revisited Node: ", result['BrFS']['revisited_node'])
+                    print("Time: ", result['BrFS']['time_taken'])
+                    print("max memory usage: ", result['BrFS']['memory_used'], "MB")
+
+            # astar_done = result['Astar']['is_complete']
+            # astar_path = result['Astar']['path']
+            # draw
+            # if brfs_done and not brfs_draw_done:
+            #     # Animate BrFS path step by step
+            #     brfs_map = replay_path(starting_map, brfs_path)
+            #     for m in brfs_map:
+            #         draw(map, 0)
+            # if astar_done and not astar_draw_done:
+            #     # Animate A* path step by step
+            #     astar_map = replay_path(starting_map, astar_path)
+            #     for m in astar_map:
+            #         draw(map, 0) #offset = window_width / 2
+            
+            # if both completed display button analysis
+            # or just go to the next state
+            if brfs_draw_done and astar_draw_done:
+                state = game_state[2]
+        elif state == game_state[2]:
+            # display both status: is solve, some evaluation information
+            pass
+
+        # for event in pygame.event.get():
+        #     if event.type == pygame.QUIT:
+        #         running = False
         
-        # if both completed display button analysis
-        # or just go to the next state
-        if brfs_draw_done and astar_draw_done:
-            state = game_state[2]
-    elif state == game_state[2]:
-        # display both status: is solve, some evaluation information
-        pass
-
-    # for event in pygame.event.get():
-    #     if event.type == pygame.QUIT:
-    #         running = False
-    
     pass
