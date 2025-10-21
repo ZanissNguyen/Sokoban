@@ -228,13 +228,12 @@ def BrFS(init_state, goal):
                 end_time = time.time()
                 result = {
                     'is_solved': True,
-                    'is_complete': True, 
                     'path': state.path,
                     'expand_node': expand_node, 
-                    'generated_node': generated_node, #un-done
-                    'revisited_node': revisited_node,#un-done
-                    'time_taken': end_time - start_time,    #un-done
-                    'memory_used': max_memory_usage    #un-done
+                    'generated_node': generated_node, 
+                    'revisited_node': revisited_node,
+                    'time_taken': end_time - start_time,    
+                    'memory_used': max_memory_usage    
                 }
                 return result
             
@@ -244,8 +243,7 @@ def BrFS(init_state, goal):
     # no solution
     # return flag, path, explored_nodes, time_taken, memory_used
     result = {
-        'is_solved': False,
-        'is_complete': True, 
+        'is_solved': False, 
         'path': [], 
         'expand_node': 0,
         'generated_node': 0,
@@ -261,7 +259,6 @@ def A_star(init_map, goal):
     # return solved flag, path, explored_nodes, time_taken, memory_used
     result = {
         'is_solved': False,
-        'is_complete': False, 
         'path': [], 
         'expand_node': 0,
         'generated_node': 0,
@@ -329,10 +326,13 @@ def solver(testcase, method, is_log=True, debug=True, UI=False):
     #     print(f"No testcase {tc_id}")
     #     sys.exit(1)
     init_map = [
-        "########",
-        "#@   $.#",
-        "########"
-    
+        "#### ####",
+        "#  ###  #",
+        "# $ * $ #",
+        "#   +   #",
+        "### .$###",
+        "  # . #  ",
+        "  #####  "
     ]
     init_boxes, init_walls, init_player, init_goal = loadInfoFromMap(init_map)
     init_state = State(init_map, init_boxes, init_walls, init_player, init_goal, [])
@@ -351,6 +351,11 @@ def solver(testcase, method, is_log=True, debug=True, UI=False):
             # debug
             print(result['path'])
             replay_path(init_state, result['path'], UI)
+            print(f"Time: {result['time_taken']}s")
+            print(f"Expanded Node: {result['expand_node']}")
+            print(f"Generated Node: {result['generated_node']}")
+            print(f"Revisited Node: {result['revisited_node']}")
+            print(f"Max memory usage: {result['memory_used']}MB")
 
         return result['path']
     
