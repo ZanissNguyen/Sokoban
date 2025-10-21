@@ -2,6 +2,10 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 import heapq
 import time
+import psutil
+import os
+import gc  # Garbage collector
+import tracemalloc  # Python memory profiler (more accurate!)
 
 # test_map = [
 #     "#### ####",
@@ -333,10 +337,20 @@ class State:
             print(row)
         print("\n")
 
-def BrFS(init_state, goal):
-    # implement Breadth-First Search algorithm
-    # return path (up, down, left, right) from start to goal
-    # if no path, return None
+def BrFS_tracemalloc(init_state, goal):
+    """
+    BFS with tracemalloc for MORE ACCURATE and STABLE memory measurement
+    tracemalloc tracks Python object memory directly, not process memory
+    This gives more consistent results across runs!
+    """
+    # Force garbage collection multiple times
+    gc.collect()
+    gc.collect()
+    gc.collect()
+    
+    # Start tracemalloc
+    tracemalloc.start()
+    
     start_time = time.time()
     generated_node = 0
     expand_node = 0
@@ -353,12 +367,92 @@ def BrFS(init_state, goal):
         # Check if current state is goal
         if current_state.is_win(goal):
             end_time = time.time()
+            
+            # Get peak memory usage
+            current, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+            
             return {
                 'path': current_state.path,
                 'expand_node': expand_node,
                 'generated_node': generated_node,
                 'revisited_node': revisited_node,
-                'time_taken': end_time - start_time
+                'time_taken': end_time - start_time,
+                'memory_used': peak / (1024 * 1024)  # Convert to MB
+            }
+        
+        # Explore neighbors
+        neighbors = current_state.explore_neighbors()
+        
+        for state in neighbors:
+            generated_node += 1
+            
+            # Skip if already visited
+            if state in visited:
+                revisited_node += 1
+                continue
+            
+            # Skip if deadlock
+            if state.is_deadlock():
+                continue
+            
+            # Add to queue and visited
+            queue.append(state)
+            visited.add(state)
+    
+    end_time = time.time()
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    
+    return {
+        'path': None,
+        'expand_node': expand_node,
+        'generated_node': generated_node,
+        'revisited_node': revisited_node,
+        'time_taken': end_time - start_time,
+        'memory_used': peak / (1024 * 1024)
+    }
+
+def BrFS(init_state, goal):
+    # implement Breadth-First Search algorithm
+    # return path (up, down, left, right) from start to goal
+    # if no path, return None
+    
+    # Force garbage collection before starting to get clean baseline
+    gc.collect()
+    
+    start_time = time.time()
+    generated_node = 0
+    expand_node = 0
+    revisited_node = 0
+    
+    # Get baseline memory (RSS - Resident Set Size in bytes)
+    process = psutil.Process(os.getpid())
+    baseline_memory = process.memory_info().rss / (1024 * 1024)  # Convert to MB
+    max_memory_usage = 0
+    
+    queue = [init_state]
+    visited = set()
+    visited.add(init_state)
+
+    while len(queue) != 0:
+        # Measure current memory usage
+        current_memory = process.memory_info().rss / (1024 * 1024) - baseline_memory
+        max_memory_usage = max(max_memory_usage, current_memory)
+        
+        current_state = queue.pop(0)
+        expand_node += 1
+        
+        # Check if current state is goal
+        if current_state.is_win(goal):
+            end_time = time.time()
+            return {
+                'path': current_state.path,
+                'expand_node': expand_node,
+                'generated_node': generated_node,
+                'revisited_node': revisited_node,
+                'time_taken': end_time - start_time,
+                'memory_used': max_memory_usage
             }
         
         # Explore neighbors
@@ -390,20 +484,24 @@ def BrFS(init_state, goal):
         'expand_node': expand_node,
         'generated_node': generated_node,
         'revisited_node': revisited_node,
-        'time_taken': end_time - start_time
+        'time_taken': end_time - start_time,
+        'memory_used': max_memory_usage
     }  # No solution found
 
-def A_star(init_state, goal):
+def A_star_tracemalloc(init_state, goal):
     """
-    Implement A* algorithm with Hungarian Algorithm heuristic
-    
-    Args:
-        init_state: State object with initial game state
-        goal: list of goal positions
-    
-    Returns:
-        dict: solution with path and statistics
+    A* with tracemalloc for MORE ACCURATE and STABLE memory measurement
+    tracemalloc tracks Python object memory directly, not process memory
+    This gives more consistent results across runs!
     """
+    # Force garbage collection multiple times
+    gc.collect()
+    gc.collect()
+    gc.collect()
+    
+    # Start tracemalloc
+    tracemalloc.start()
+    
     start_time = time.time()
     generated_node = 0
     expand_node = 0
@@ -427,12 +525,120 @@ def A_star(init_state, goal):
         # Check if goal state
         if current_state.is_win(goal):
             end_time = time.time()
+            
+            # Get peak memory usage
+            current, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+            
             return {
                 'path': current_state.path,
                 'expand_node': expand_node,
                 'generated_node': generated_node,
                 'revisited_node': revisited_node,
-                'time_taken': end_time - start_time
+                'time_taken': end_time - start_time,
+                'memory_used': peak / (1024 * 1024)  # Convert to MB
+            }
+        
+        # Get current g_cost
+        g_cost = visited[current_state]
+        
+        # Explore neighbors
+        for neighbor in current_state.explore_neighbors():
+            generated_node += 1
+            
+            # Skip deadlocks
+            if neighbor.is_deadlock():
+                continue
+            
+            # Calculate new g_cost (number of moves)
+            new_g_cost = g_cost + 1
+            
+            # Check if already visited with better cost
+            if neighbor in visited:
+                revisited_node += 1
+                if visited[neighbor] <= new_g_cost:
+                    continue
+            
+            # Update visited
+            visited[neighbor] = new_g_cost
+            
+            # Calculate h_cost using Hungarian Algorithm
+            h_cost = A_star_h(neighbor, goal)
+            
+            # f_cost = g_cost + h_cost
+            new_f_cost = new_g_cost + h_cost
+            
+            # Add to heap
+            counter += 1
+            heapq.heappush(heap, (new_f_cost, counter, neighbor))
+    
+    # No solution found
+    end_time = time.time()
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
+    
+    return {
+        'path': None,
+        'expand_node': expand_node,
+        'generated_node': generated_node,
+        'revisited_node': revisited_node,
+        'time_taken': end_time - start_time,
+        'memory_used': peak / (1024 * 1024)
+    }
+
+def A_star(init_state, goal):
+    """
+    Implement A* algorithm with Hungarian Algorithm heuristic
+    
+    Args:
+        init_state: State object with initial game state
+        goal: list of goal positions
+    
+    Returns:
+        dict: solution with path and statistics
+    """
+    # Force garbage collection before starting to get clean baseline
+    gc.collect()
+    
+    start_time = time.time()
+    generated_node = 0
+    expand_node = 0
+    revisited_node = 0
+    
+    # Get baseline memory (RSS - Resident Set Size in bytes)
+    process = psutil.Process(os.getpid())
+    baseline_memory = process.memory_info().rss / (1024 * 1024)  # Convert to MB
+    max_memory_usage = 0
+
+    # Priority queue: (f_cost, counter, state)
+    counter = 0
+    heap = []
+    
+    # Calculate initial h_cost
+    h_cost = A_star_h(init_state, goal)
+    heapq.heappush(heap, (h_cost, counter, init_state))
+    
+    visited = {}
+    visited[init_state] = 0  # g_cost
+    
+    while heap:
+        # Measure current memory usage
+        current_memory = process.memory_info().rss / (1024 * 1024) - baseline_memory
+        max_memory_usage = max(max_memory_usage, current_memory)
+        
+        f_cost, _, current_state = heapq.heappop(heap)
+        expand_node += 1
+        
+        # Check if goal state
+        if current_state.is_win(goal):
+            end_time = time.time()
+            return {
+                'path': current_state.path,
+                'expand_node': expand_node,
+                'generated_node': generated_node,
+                'revisited_node': revisited_node,
+                'time_taken': end_time - start_time,
+                'memory_used': max_memory_usage
             }
         
         # Get current g_cost
@@ -475,7 +681,8 @@ def A_star(init_state, goal):
         'expand_node': expand_node,
         'generated_node': generated_node,
         'revisited_node': revisited_node,
-        'time_taken': end_time - start_time
+        'time_taken': end_time - start_time,
+        'memory_used': max_memory_usage
     }
 
 def A_star_h(current_state, goal):
@@ -540,9 +747,10 @@ if __name__ == "__main__":
     print("1. BFS (Breadth-First Search)")
     print("2. A* (A-Star with Hungarian Algorithm)")
     print("3. Both (Compare)")
+    print("4. Both with tracemalloc (More stable memory!)")
     print("="*50)
     
-    choice = input("Enter your choice (1/2/3): ").strip()
+    choice = input("Enter your choice (1/2/3/4): ").strip()
     
     if choice == "1":
         print("\n" + "="*50)
@@ -551,15 +759,16 @@ if __name__ == "__main__":
         result = BrFS(init_state, init_goal)
         
         if result['path']:
-            print(f"\n✓ Solution found!")
+            print(f"\n[SUCCESS] Solution found!")
             print(f"Path length: {len(result['path'])}")
             print(f"Expanded nodes: {result['expand_node']}")
             print(f"Generated nodes: {result['generated_node']}")
             print(f"Revisited nodes: {result['revisited_node']}")
             print(f"Time taken: {result['time_taken']:.4f} seconds")
+            print(f"Max memory usage: {result['memory_used']:.2f} MB")
             print(f"\nPath: {result['path']}")
         else:
-            print("\n✗ No solution found!")
+            print("\n[FAILED] No solution found!")
     
     elif choice == "2":
         print("\n" + "="*50)
@@ -568,15 +777,16 @@ if __name__ == "__main__":
         result = A_star(init_state, init_goal)
         
         if result['path']:
-            print(f"\n✓ Solution found!")
+            print(f"\n[SUCCESS] Solution found!")
             print(f"Path length: {len(result['path'])}")
             print(f"Expanded nodes: {result['expand_node']}")
             print(f"Generated nodes: {result['generated_node']}")
             print(f"Revisited nodes: {result['revisited_node']}")
             print(f"Time taken: {result['time_taken']:.4f} seconds")
+            print(f"Max memory usage: {result['memory_used']:.2f} MB")
             print(f"\nPath: {result['path']}")
         else:
-            print("\n✗ No solution found!")
+            print("\n[FAILED] No solution found!")
     
     elif choice == "3":
         print("\n" + "="*50)
@@ -610,8 +820,8 @@ if __name__ == "__main__":
             astar_path_len = "N/A"
         
         print("{:<25} {:<20} {:<20}".format("Solution found:", 
-                                             "✓" if bfs_result['path'] else "✗",
-                                             "✓" if astar_result['path'] else "✗"))
+                                             "YES" if bfs_result['path'] else "NO",
+                                             "YES" if astar_result['path'] else "NO"))
         print("{:<25} {:<20} {:<20}".format("Path length:", 
                                              bfs_path_len, astar_path_len))
         print("{:<25} {:<20} {:<20}".format("Expanded nodes:", 
@@ -626,6 +836,9 @@ if __name__ == "__main__":
         print("{:<25} {:<20.4f} {:<20.4f}".format("Time taken (s):", 
                                                     bfs_result['time_taken'], 
                                                     astar_result['time_taken']))
+        print("{:<25} {:<20.2f} {:<20.2f}".format("Max memory (MB):", 
+                                                    bfs_result['memory_used'], 
+                                                    astar_result['memory_used']))
         
         # Calculate speedup
         if bfs_result['time_taken'] > 0 and astar_result['time_taken'] > 0:
@@ -636,6 +849,90 @@ if __name__ == "__main__":
             else:
                 print(f"BFS is {1/speedup:.2f}x faster than A*")
             print("="*50)
+        
+        # Memory comparison
+        if bfs_result['memory_used'] > 0 and astar_result['memory_used'] > 0:
+            mem_ratio = bfs_result['memory_used'] / astar_result['memory_used']
+            print("\n" + "="*50)
+            if mem_ratio > 1:
+                print(f"A* uses {mem_ratio:.2f}x less memory than BFS")
+            else:
+                print(f"BFS uses {1/mem_ratio:.2f}x less memory than A*")
+            print("="*50)
+    
+    elif choice == "4":
+        print("\n" + "="*50)
+        print("Comparing BFS vs A* with tracemalloc...")
+        print("(More accurate & stable memory measurement!)")
+        print("="*50)
+        
+        # Run BFS with tracemalloc
+        print("\nRunning BFS with tracemalloc...")
+        bfs_result = BrFS_tracemalloc(init_state, init_goal)
+        
+        # Run A* with tracemalloc
+        print("Running A* with tracemalloc...")
+        astar_result = A_star_tracemalloc(init_state, init_goal)
+        
+        # Display comparison
+        print("\n" + "="*50)
+        print("COMPARISON RESULTS (tracemalloc)")
+        print("="*50)
+        
+        print("\n{:<25} {:<20} {:<20}".format("Metric", "BFS", "A* (Hungarian)"))
+        print("-" * 65)
+        
+        if bfs_result['path']:
+            bfs_path_len = len(bfs_result['path'])
+        else:
+            bfs_path_len = "N/A"
+            
+        if astar_result['path']:
+            astar_path_len = len(astar_result['path'])
+        else:
+            astar_path_len = "N/A"
+        
+        print("{:<25} {:<20} {:<20}".format("Solution found:", 
+                                             "YES" if bfs_result['path'] else "NO",
+                                             "YES" if astar_result['path'] else "NO"))
+        print("{:<25} {:<20} {:<20}".format("Path length:", 
+                                             bfs_path_len, astar_path_len))
+        print("{:<25} {:<20} {:<20}".format("Expanded nodes:", 
+                                             bfs_result['expand_node'], 
+                                             astar_result['expand_node']))
+        print("{:<25} {:<20} {:<20}".format("Generated nodes:", 
+                                             bfs_result['generated_node'], 
+                                             astar_result['generated_node']))
+        print("{:<25} {:<20} {:<20}".format("Revisited nodes:", 
+                                             bfs_result['revisited_node'], 
+                                             astar_result['revisited_node']))
+        print("{:<25} {:<20.4f} {:<20.4f}".format("Time taken (s):", 
+                                                    bfs_result['time_taken'], 
+                                                    astar_result['time_taken']))
+        print("{:<25} {:<20.2f} {:<20.2f}".format("Peak memory (MB):", 
+                                                    bfs_result['memory_used'], 
+                                                    astar_result['memory_used']))
+        
+        # Calculate speedup
+        if bfs_result['time_taken'] > 0 and astar_result['time_taken'] > 0:
+            speedup = bfs_result['time_taken'] / astar_result['time_taken']
+            print("\n" + "="*50)
+            if speedup > 1:
+                print(f"A* is {speedup:.2f}x faster than BFS")
+            else:
+                print(f"BFS is {1/speedup:.2f}x faster than A*")
+            print("="*50)
+        
+        # Memory comparison
+        if bfs_result['memory_used'] > 0 and astar_result['memory_used'] > 0:
+            mem_ratio = bfs_result['memory_used'] / astar_result['memory_used']
+            print("\n" + "="*50)
+            if mem_ratio > 1:
+                print(f"A* uses {mem_ratio:.2f}x less memory than BFS")
+            else:
+                print(f"BFS uses {1/mem_ratio:.2f}x less memory than A*")
+            print("="*50)
+        
     
     else:
         print("Invalid choice!")
