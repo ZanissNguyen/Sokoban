@@ -3,6 +3,9 @@ from multiprocessing import Process, Manager
 import os
 import psutil
 import time
+import numpy as np
+from scipy.optimize import linear_sum_assignment
+import heapq
 
 # pygame.init()
 
@@ -263,29 +266,148 @@ def BrFS(result, init_state, goal):
     }
     pass
 
-def A_star(result, init_map, goal):
-    # implement A* algorithm
+def A_star(result, init_state, goal):
+    """
+    Implement A* algorithm with Hungarian Algorithm heuristic
+    
+    Args:
+        result: dict to store results
+        init_state: State object with initial game state
+        goal: list of goal positions
+    """
+    generated_node = 0
+    expand_node = 0
+    revisited_node = 0
+    start_time = time.time()
+    max_memory_usage = 0
+    baseline_memory = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
 
-    # return solved flag, path, explored_nodes, time_taken, memory_used
+    # Priority queue: (f_cost, counter, state)
+    counter = 0
+    heap = []
+    heapq.heappush(heap, (A_star_h(init_state, init_state, goal), counter, init_state))
+    
+    visited = {}
+    visited[init_state] = 0  # g_cost
+    
+    while heap:
+        # Measure current memory
+        current_memory = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024) - baseline_memory
+        max_memory_usage = max(max_memory_usage, current_memory)
+        
+        f_cost, _, current_state = heapq.heappop(heap)
+        expand_node += 1
+        
+        # Check if goal state
+        if current_state.is_win(goal):
+            end_time = time.time()
+            result['Astar'] = {
+                'is_solved': True,
+                'is_complete': True,
+                'path': current_state.path,
+                'expand_node': expand_node,
+                'generated_node': generated_node,
+                'revisited_node': revisited_node,
+                'time_taken': end_time - start_time,
+                'memory_used': max_memory_usage
+            }
+            return
+        
+        # Get current g_cost
+        g_cost = visited[current_state]
+        
+        # Explore neighbors
+        for neighbor in current_state.explore_neighbors():
+            generated_node += 1
+            
+            # Skip deadlocks
+            if neighbor.is_deadlock():
+                continue
+            
+            # Calculate new g_cost (number of moves)
+            new_g_cost = g_cost + 1
+            
+            # Check if already visited with better cost
+            if neighbor in visited:
+                revisited_node += 1
+                if visited[neighbor] <= new_g_cost:
+                    continue
+            
+            # Update visited
+            visited[neighbor] = new_g_cost
+            
+            # Calculate h_cost using Hungarian Algorithm
+            h_cost = A_star_h(neighbor, init_state, goal)
+            
+            # f_cost = g_cost + h_cost
+            new_f_cost = new_g_cost + h_cost
+            
+            # Add to heap
+            counter += 1
+            heapq.heappush(heap, (new_f_cost, counter, neighbor))
+    
+    # No solution found
+    end_time = time.time()
     result['Astar'] = {
         'is_solved': False,
-        'is_complete': False, 
-        'path': [], 
-        'expand_node': 0,
-        'generated_node': 0,
-        'revisited_node': 0,#un-done
-        'time_taken': 0,
-        'memory_used': 0
+        'is_complete': True,
+        'path': [],
+        'expand_node': expand_node,
+        'generated_node': generated_node,
+        'revisited_node': revisited_node,
+        'time_taken': end_time - start_time,
+        'memory_used': max_memory_usage
     }
-    pass
 
-def A_star_h(map, start, goal):
-    # calculate h(n)
-    pass
+def A_star_h(current_state, init_state, goal):
+    """
+    Calculate h(n) using Hungarian Algorithm for optimal box-goal assignment
+    
+    Args:
+        current_state: State object with current boxes positions
+        init_state: State object (not used, kept for signature compatibility)
+        goal: list of goal positions
+    
+    Returns:
+        int: heuristic value (optimal assignment cost)
+    """
+    boxes = current_state.boxes
+    goals = goal
+    
+    # Find boxes not yet on goals
+    completed_boxes = set(boxes) & set(goals)
+    remaining_boxes = list(set(boxes) - completed_boxes)
+    remaining_goals = list(set(goals) - completed_boxes)
+    
+    # If all boxes on goals, h = 0
+    if not remaining_boxes:
+        return 0
+    
+    # Create cost matrix: Manhattan distances
+    cost_matrix = np.array([[
+        abs(box[0] - goal_pos[0]) + abs(box[1] - goal_pos[1])
+        for goal_pos in remaining_goals
+    ] for box in remaining_boxes])
+    
+    # Solve assignment problem using Hungarian Algorithm
+    row_indices, col_indices = linear_sum_assignment(cost_matrix)
+    
+    # Return sum of optimal assignment
+    return int(cost_matrix[row_indices, col_indices].sum())
 
-def A_star_g(map, start, goal):
-    # calculate g(n)
-    pass
+def A_star_g(current_state, init_state, goal):
+    """
+    Calculate g(n) - cost from start to current state
+    
+    Args:
+        current_state: State object with current state
+        init_state: State object (not used, kept for signature compatibility) 
+        goal: list of goal positions (not used, kept for signature compatibility)
+    
+    Returns:
+        int: number of moves from start to current state
+    """
+    return len(current_state.path)
 
 def draw(map, offset_x = 0):
     # offset x for drawing multiple maps side by side
