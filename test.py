@@ -1,3 +1,8 @@
+import numpy as np
+from scipy.optimize import linear_sum_assignment
+import heapq
+import time
+
 # test_map = [
 #     "#### ####",
 #     "#  ###  #",
@@ -7,12 +12,16 @@
 #     "  # . #  ",
 #     "  #####  "
 # ]
+# Test cases - uncomment the one you want to test
+
+# Very simple test case
 # test_map = [
 #     "########",
 #     "#@   $.#",
 #     "########"
-#
-#  ]
+# ]
+
+# Simple test case
 # test_map = [
 #     "#######",
 #     "#     #",
@@ -21,24 +30,39 @@
 #     "# @# ##",
 #     "#######"
 # ]
+
+# Medium test case
 # test_map = [
-#     "#################",
-#     "#  #  #  #  #   #",
-#     "#.$   #  #.$    #",
-#     "#  #.$ .$   #   #",
-#     "# @#  #  #  #   #",
-#     "#################",
+#     "#### ####",
+#     "#  ###  #",
+#     "# $ * $ #",
+#     "#   +   #",
+#     "### .$###",
+#     "  # . #  ",
+#     "  #####  "
 # ]
+
+# Medium-Hard test case (default)
+# test_map = [
+#     "   #### ",
+#     "####  # ",
+#     "#  $  ##",
+#     "# #$#  #",
+#     "#@ $   #",
+#     "#.###  #",
+#     "#.#### #",
+#     "#.     #",
+#     "########"
+# ]
+
+# Hard test case
 test_map = [
-    "   #### ",
-    "####  # ",
-    "#  $  ##",
-    "# #$#  #",
-    "#@ $   #",
-    "#.###  #",
-    "#.#### #",
-    "#.     #",
-    "########"
+    "#################",
+    "#  #  #  #  #   #",
+    "#.$   #  #.$    #",
+    "#  #.$ .$   #   #",
+    "# @#  #  #  #   #",
+    "#################",
 ]
 
 map_width = len(test_map[0])
@@ -189,13 +213,13 @@ class State:
     def is_deadlock(self):
         for (x, y) in self.boxes:
             if is_corner_deadlock(x, y, self.walls, self.goal):
-                print("case 1")
+                # print("case 1: corner deadlock")
                 return True
             # if is_edge_deadlock(x, y, self.walls, self.goal):
-            #     print("case 2")
+            #     print("case 2: edge deadlock")
             #     return True
             if is_block_2x2_deadlock(x, y, self.boxes, self.walls, self.goal):
-                print("case 3   ")
+                # print("case 3: 2x2 block deadlock")
                 return True
         return False
 
@@ -313,28 +337,181 @@ def BrFS(init_state, goal):
     # implement Breadth-First Search algorithm
     # return path (up, down, left, right) from start to goal
     # if no path, return None
+    start_time = time.time()
+    generated_node = 0
+    expand_node = 0
+    revisited_node = 0
+    
     queue = [init_state]
     visited = set()
     visited.add(init_state)
 
     while len(queue) != 0:
-        explored = queue.pop(0).explore_neighbors()
-        for state in explored:
-            print("Path: ", state.path)
-            state.draw()
-        for state in explored:
-            if state.is_deadlock():
-                print("Path: ", state.path, " is deadlock")
-                continue
-
+        current_state = queue.pop(0)
+        expand_node += 1
+        
+        # Check if current state is goal
+        if current_state.is_win(goal):
+            end_time = time.time()
+            return {
+                'path': current_state.path,
+                'expand_node': expand_node,
+                'generated_node': generated_node,
+                'revisited_node': revisited_node,
+                'time_taken': end_time - start_time
+            }
+        
+        # Explore neighbors
+        neighbors = current_state.explore_neighbors()
+        
+        for state in neighbors:
+            generated_node += 1
+            
+            # Skip if already visited
             if state in visited:
+                revisited_node += 1
                 continue
             
-            if state.is_win(goal):
-                return state.path, 
+            # Skip if deadlock
+            if state.is_deadlock():
+                # print("Deadlock detected at:", state.path)
+                continue
             
+            # Add to queue and visited
             queue.append(state)
             visited.add(state)
+            
+            # Optional: print progress (comment out for faster execution)
+            # print(f"Exploring path length: {len(state.path)}")
+    
+    end_time = time.time()
+    return {
+        'path': None,
+        'expand_node': expand_node,
+        'generated_node': generated_node,
+        'revisited_node': revisited_node,
+        'time_taken': end_time - start_time
+    }  # No solution found
+
+def A_star(init_state, goal):
+    """
+    Implement A* algorithm with Hungarian Algorithm heuristic
+    
+    Args:
+        init_state: State object with initial game state
+        goal: list of goal positions
+    
+    Returns:
+        dict: solution with path and statistics
+    """
+    start_time = time.time()
+    generated_node = 0
+    expand_node = 0
+    revisited_node = 0
+
+    # Priority queue: (f_cost, counter, state)
+    counter = 0
+    heap = []
+    
+    # Calculate initial h_cost
+    h_cost = A_star_h(init_state, goal)
+    heapq.heappush(heap, (h_cost, counter, init_state))
+    
+    visited = {}
+    visited[init_state] = 0  # g_cost
+    
+    while heap:
+        f_cost, _, current_state = heapq.heappop(heap)
+        expand_node += 1
+        
+        # Check if goal state
+        if current_state.is_win(goal):
+            end_time = time.time()
+            return {
+                'path': current_state.path,
+                'expand_node': expand_node,
+                'generated_node': generated_node,
+                'revisited_node': revisited_node,
+                'time_taken': end_time - start_time
+            }
+        
+        # Get current g_cost
+        g_cost = visited[current_state]
+        
+        # Explore neighbors
+        for neighbor in current_state.explore_neighbors():
+            generated_node += 1
+            
+            # Skip deadlocks
+            if neighbor.is_deadlock():
+                continue
+            
+            # Calculate new g_cost (number of moves)
+            new_g_cost = g_cost + 1
+            
+            # Check if already visited with better cost
+            if neighbor in visited:
+                revisited_node += 1
+                if visited[neighbor] <= new_g_cost:
+                    continue
+            
+            # Update visited
+            visited[neighbor] = new_g_cost
+            
+            # Calculate h_cost using Hungarian Algorithm
+            h_cost = A_star_h(neighbor, goal)
+            
+            # f_cost = g_cost + h_cost
+            new_f_cost = new_g_cost + h_cost
+            
+            # Add to heap
+            counter += 1
+            heapq.heappush(heap, (new_f_cost, counter, neighbor))
+    
+    # No solution found
+    end_time = time.time()
+    return {
+        'path': None,
+        'expand_node': expand_node,
+        'generated_node': generated_node,
+        'revisited_node': revisited_node,
+        'time_taken': end_time - start_time
+    }
+
+def A_star_h(current_state, goal):
+    """
+    Calculate h(n) using Hungarian Algorithm for optimal box-goal assignment
+    
+    Args:
+        current_state: State object with current boxes positions
+        goal: list of goal positions
+    
+    Returns:
+        int: heuristic value (optimal assignment cost)
+    """
+    boxes = current_state.boxes
+    goals = goal
+    
+    # Find boxes not yet on goals
+    completed_boxes = set(boxes) & set(goals)
+    remaining_boxes = list(set(boxes) - completed_boxes)
+    remaining_goals = list(set(goals) - completed_boxes)
+    
+    # If all boxes on goals, h = 0
+    if not remaining_boxes:
+        return 0
+    
+    # Create cost matrix: Manhattan distances
+    cost_matrix = np.array([[
+        abs(box[0] - goal_pos[0]) + abs(box[1] - goal_pos[1])
+        for goal_pos in remaining_goals
+    ] for box in remaining_boxes])
+    
+    # Solve assignment problem using Hungarian Algorithm
+    row_indices, col_indices = linear_sum_assignment(cost_matrix)
+    
+    # Return sum of optimal assignment
+    return int(cost_matrix[row_indices, col_indices].sum())
 
 if __name__ == "__main__":
 
@@ -354,10 +531,113 @@ if __name__ == "__main__":
                 init_walls.append((x,y))
 
     init_state = State(test_map, init_boxes, init_walls, init_player, init_goal, [])
+    
+    print("Initial state:")
     init_state.draw()
-
-    print(BrFS(init_state, init_goal))
-    # for state in init_state.explore_neighbors():   
-    #     state.draw()
+    
+    print("\n" + "="*50)
+    print("Select algorithm:")
+    print("1. BFS (Breadth-First Search)")
+    print("2. A* (A-Star with Hungarian Algorithm)")
+    print("3. Both (Compare)")
+    print("="*50)
+    
+    choice = input("Enter your choice (1/2/3): ").strip()
+    
+    if choice == "1":
+        print("\n" + "="*50)
+        print("Solving using BFS...")
+        print("="*50)
+        result = BrFS(init_state, init_goal)
+        
+        if result['path']:
+            print(f"\n✓ Solution found!")
+            print(f"Path length: {len(result['path'])}")
+            print(f"Expanded nodes: {result['expand_node']}")
+            print(f"Generated nodes: {result['generated_node']}")
+            print(f"Revisited nodes: {result['revisited_node']}")
+            print(f"Time taken: {result['time_taken']:.4f} seconds")
+            print(f"\nPath: {result['path']}")
+        else:
+            print("\n✗ No solution found!")
+    
+    elif choice == "2":
+        print("\n" + "="*50)
+        print("Solving using A* with Hungarian Algorithm...")
+        print("="*50)
+        result = A_star(init_state, init_goal)
+        
+        if result['path']:
+            print(f"\n✓ Solution found!")
+            print(f"Path length: {len(result['path'])}")
+            print(f"Expanded nodes: {result['expand_node']}")
+            print(f"Generated nodes: {result['generated_node']}")
+            print(f"Revisited nodes: {result['revisited_node']}")
+            print(f"Time taken: {result['time_taken']:.4f} seconds")
+            print(f"\nPath: {result['path']}")
+        else:
+            print("\n✗ No solution found!")
+    
+    elif choice == "3":
+        print("\n" + "="*50)
+        print("Comparing BFS vs A* (Hungarian Algorithm)...")
+        print("="*50)
+        
+        # Run BFS
+        print("\nRunning BFS...")
+        bfs_result = BrFS(init_state, init_goal)
+        
+        # Run A*
+        print("Running A*...")
+        astar_result = A_star(init_state, init_goal)
+        
+        # Display comparison
+        print("\n" + "="*50)
+        print("COMPARISON RESULTS")
+        print("="*50)
+        
+        print("\n{:<25} {:<20} {:<20}".format("Metric", "BFS", "A* (Hungarian)"))
+        print("-" * 65)
+        
+        if bfs_result['path']:
+            bfs_path_len = len(bfs_result['path'])
+        else:
+            bfs_path_len = "N/A"
+            
+        if astar_result['path']:
+            astar_path_len = len(astar_result['path'])
+        else:
+            astar_path_len = "N/A"
+        
+        print("{:<25} {:<20} {:<20}".format("Solution found:", 
+                                             "✓" if bfs_result['path'] else "✗",
+                                             "✓" if astar_result['path'] else "✗"))
+        print("{:<25} {:<20} {:<20}".format("Path length:", 
+                                             bfs_path_len, astar_path_len))
+        print("{:<25} {:<20} {:<20}".format("Expanded nodes:", 
+                                             bfs_result['expand_node'], 
+                                             astar_result['expand_node']))
+        print("{:<25} {:<20} {:<20}".format("Generated nodes:", 
+                                             bfs_result['generated_node'], 
+                                             astar_result['generated_node']))
+        print("{:<25} {:<20} {:<20}".format("Revisited nodes:", 
+                                             bfs_result['revisited_node'], 
+                                             astar_result['revisited_node']))
+        print("{:<25} {:<20.4f} {:<20.4f}".format("Time taken (s):", 
+                                                    bfs_result['time_taken'], 
+                                                    astar_result['time_taken']))
+        
+        # Calculate speedup
+        if bfs_result['time_taken'] > 0 and astar_result['time_taken'] > 0:
+            speedup = bfs_result['time_taken'] / astar_result['time_taken']
+            print("\n" + "="*50)
+            if speedup > 1:
+                print(f"A* is {speedup:.2f}x faster than BFS")
+            else:
+                print(f"BFS is {1/speedup:.2f}x faster than A*")
+            print("="*50)
+    
+    else:
+        print("Invalid choice!")
 
     pass
