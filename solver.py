@@ -68,7 +68,7 @@ def is_block_2x2_deadlock(x, y, boxes, walls, goals):
 # map - 2D array of chars
 # boxes - list of (x,y) positions
 # player - (x,y) position
-class State:
+class SokobanState:
     def __init__(self, map, boxes, walls, player, goal, path):
         self.map = map
         self.boxes = boxes
@@ -78,7 +78,7 @@ class State:
         self.path = path
 
     def __eq__(self, other):
-        return isinstance(other, State) and self.player == other.player and set(self.boxes) == set(other.boxes)
+        return isinstance(other, SokobanState) and self.player == other.player and set(self.boxes) == set(other.boxes)
 
     def __hash__(self):
         # Sort boxes so order doesn't matter
@@ -163,13 +163,13 @@ class State:
                 new_map = render_map(self.walls, new_boxes, new_player, self.goal,
                                 len(self.map[0]), len(self.map))
 
-                return State(new_map, new_boxes, self.walls, new_player, self.goal, self.path + [direction])
+                return SokobanState(new_map, new_boxes, self.walls, new_player, self.goal, self.path + [direction])
         
         # print("Move player")
         new_map = render_map(self.walls, new_boxes, new_player, self.goal,
                                 len(self.map[0]), len(self.map))
         
-        return State(new_map, new_boxes, self.walls, new_player, self.goal, self.path + [direction])
+        return SokobanState(new_map, new_boxes, self.walls, new_player, self.goal, self.path + [direction])
     
 # goal - list of (x,y) positions
 
@@ -398,28 +398,23 @@ def A_star_g(current_state, init_state, goal):
     """
     return len(current_state.path)
 
-def draw(map, UI):
+def draw(map):
     # offset x for drawing multiple maps side by side
     # display map using pygame 
     # without pygame:
-    if not UI:
-        for row in map:
-            print(row)
+    for row in map:
+        print(row)
 
-    # pygame.display.update()
-    # pygame.time.delay(100)
-    pass
-
-def replay_path(init_state, path, UI):
+def replay_path(init_state, path):
     # replay path step by step
     # return list of map and drawing them having delay
     result = [init_state]
-    draw(init_state.map, UI)
+    draw(init_state.map)
     state = init_state
     for dir in path:
         state = state.move(dir)
         print(dir)
-        draw(state.map, UI)
+        draw(state.map)
         result.append(state)
 
     return result
@@ -442,7 +437,7 @@ def loadInfoFromMap(map):
     return boxes, walls, player, goal
 
 # via UI pygame collect testcase, method 
-def solver(testcase, method, is_log=True, debug=True, UI=False):
+def solver(testcase, method, is_log=True, debug=True):
     # init_map = load_testcase(testcase)
     # if not init_map:
     #     print(f"No testcase {tc_id}")
@@ -457,7 +452,7 @@ def solver(testcase, method, is_log=True, debug=True, UI=False):
         "  #####  "
     ]
     init_boxes, init_walls, init_player, init_goal = loadInfoFromMap(init_map)
-    init_state = State(init_map, init_boxes, init_walls, init_player, init_goal, [])
+    init_state = SokobanState(init_map, init_boxes, init_walls, init_player, init_goal, [])
 
     if (method == 'BrFS'):
         result = BrFS(init_state, init_goal)
@@ -472,7 +467,7 @@ def solver(testcase, method, is_log=True, debug=True, UI=False):
         if (debug):
             # debug
             print(result['path'])
-            replay_path(init_state, result['path'], UI)
+            replay_path(init_state, result['path'])
             print(f"Time: {result['time_taken']}s")
             print(f"Expanded Node: {result['expand_node']}")
             print(f"Generated Node: {result['generated_node']}")
@@ -494,7 +489,7 @@ def solver(testcase, method, is_log=True, debug=True, UI=False):
         if (debug):
             # debug
             print(result['path'])
-            replay_path(init_state, result['path'], UI)
+            replay_path(init_state, result['path'])
             print(f"Time: {result['time_taken']}s")
             print(f"Expanded Node: {result['expand_node']}")
             print(f"Generated Node: {result['generated_node']}")
