@@ -1,8 +1,10 @@
-from psutil import Process
-import sys, time, psutil, os
+import sys, time, os
+from datetime import datetime
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 import heapq
+import tracemalloc
+import gc
 
 def render_map(walls, boxes, player, goal, map_width, map_height):
     map_template = [[' ' for _ in range(map_width)] for _ in range(map_height)]
@@ -196,6 +198,11 @@ def load_testcase(tc):
     pass
 
 def BrFS(init_state, goal):
+    gc.collect()
+    gc.collect()
+    gc.collect()
+    tracemalloc.start()
+
     # implement Breadth-First Search algorithm
     # return path (up, down, left, right) from start to goal
     # if no path, return None
@@ -203,18 +210,12 @@ def BrFS(init_state, goal):
     expand_node = 0
     revisited_node = 0
     start_time = time.time()
-    max_memory_usage = 0
-    baseline_memory = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
 
     queue = [init_state]
     visited = set()
     visited.add(init_state)
 
     while len(queue) != 0:
-        # Đo memory hiện tại
-        current_memory = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024) - baseline_memory
-        max_memory_usage = max(max_memory_usage, current_memory)
-
         # explore node (state) found
         explored = queue.pop(0).explore_neighbors()
         expand_node += 1
@@ -228,6 +229,8 @@ def BrFS(init_state, goal):
                 continue
             
             if state.is_win(goal):
+                current, peak = tracemalloc.get_traced_memory()
+                tracemalloc.stop()
                 end_time = time.time()
                 result = {
                     'is_solved': True,
@@ -236,7 +239,7 @@ def BrFS(init_state, goal):
                     'generated_node': generated_node, 
                     'revisited_node': revisited_node,
                     'time_taken': end_time - start_time,    
-                    'memory_used': max_memory_usage    
+                    'memory_used': peak / (1024 * 1024)    
                 }
                 return result
             
@@ -245,18 +248,25 @@ def BrFS(init_state, goal):
 
     # no solution
     # return flag, path, explored_nodes, time_taken, memory_used
+    end_time = time.time()
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
     result = {
-        'is_solved': False, 
-        'path': [], 
-        'expand_node': 0,
-        'generated_node': 0,
-        'revisited_node': 0,
-        'time_taken': 0,
-        'memory_used': 0
+        'is_solved': False,
+        'path': [],
+        'expand_node': expand_node,
+        'generated_node': generated_node,
+        'revisited_node': revisited_node,
+        'time_taken': end_time - start_time,
+        'memory_used': peak / (1024 * 1024)
     }
     return result
 
 def A_star(init_state, goal):
+    gc.collect()
+    gc.collect()
+    gc.collect()
+    tracemalloc.start()
     """
     Implement A* algorithm with Hungarian Algorithm heuristic
     
@@ -269,8 +279,6 @@ def A_star(init_state, goal):
     expand_node = 0
     revisited_node = 0
     start_time = time.time()
-    max_memory_usage = 0
-    baseline_memory = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024)
 
     # Priority queue: (f_cost, counter, state)
     counter = 0
@@ -280,17 +288,15 @@ def A_star(init_state, goal):
     visited = {}
     visited[init_state] = 0  # g_cost
     
-    while heap:
-        # Measure current memory
-        current_memory = psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024) - baseline_memory
-        max_memory_usage = max(max_memory_usage, current_memory)
-        
+    while heap:       
         f_cost, _, current_state = heapq.heappop(heap)
         expand_node += 1
         
         # Check if goal state
         if current_state.is_win(goal):
             end_time = time.time()
+            current, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
             result = {
                 'is_solved': True,
                 'path': current_state.path,
@@ -298,7 +304,7 @@ def A_star(init_state, goal):
                 'generated_node': generated_node,
                 'revisited_node': revisited_node,
                 'time_taken': end_time - start_time,
-                'memory_used': max_memory_usage
+                'memory_used': peak / (1024 * 1024)
             }
             return result
         
@@ -337,6 +343,8 @@ def A_star(init_state, goal):
     
     # No solution found
     end_time = time.time()
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
     result = {
         'is_solved': False,
         'path': [],
@@ -344,7 +352,7 @@ def A_star(init_state, goal):
         'generated_node': generated_node,
         'revisited_node': revisited_node,
         'time_taken': end_time - start_time,
-        'memory_used': max_memory_usage
+        'memory_used': peak / (1024 * 1024)
     }
     return result
 
@@ -462,6 +470,14 @@ def solver(testcase, method, is_log=True, debug=True):
 
         if (is_log):
             # export file
+            stats = [
+                result['expand_node'],
+                result['generated_node'],
+                result['revisited_node'],
+                result['time_taken'],
+                result['memory_used']
+            ]
+            create_log(testcase, method, result['path'], result['is_solved'], stats, "")
             print("export file")
 
         if (debug):
@@ -484,6 +500,14 @@ def solver(testcase, method, is_log=True, debug=True):
 
         if (is_log):
             # export file
+            stats = [
+                result['expand_node'],
+                result['generated_node'],
+                result['revisited_node'],
+                result['time_taken'],
+                result['memory_used']
+            ]
+            create_log(testcase, method, result['path'], result['is_solved'], stats, "")
             print("export file")
 
         if (debug):
@@ -497,6 +521,67 @@ def solver(testcase, method, is_log=True, debug=True):
             print(f"Max memory usage: {result['memory_used']}MB")
 
         return result['path']
+
+        
+def create_log(test_name, algorithm, path, is_solved, stats, level_info=""):
+    """
+    Tạo log chi tiết cho mỗi test case
+    
+    Args:
+        test_name: Tên test case
+        algorithm: Thuật toán sử dụng
+        solution: Lời giải (list các action)
+        stats: Thống kê performance
+        level_info: Thông tin về level
+    """
+    try:
+        # Tạo thư mục logs nếu chưa có
+        os.makedirs("logs", exist_ok=True)
+        
+        # Tạo tên file log với timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_filename = f"logs/{test_name}_{algorithm}_{timestamp}.txt"
+        
+        with open(log_filename, 'a', encoding='utf-8') as f:
+            f.write("=" * 80 + "\n")
+            f.write(f"SOKOBAN SOLVER - DETAILED ANALYSIS\n")
+            f.write("=" * 80 + "\n")
+            f.write(f"Thời gian: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Test Case: {test_name}\n")
+            f.write(f"Thuật toán: {algorithm}\n")
+            f.write(f"Thông tin Level: {level_info}\n")
+            f.write("-" * 80 + "\n")
+            
+            # Thông tin lời giải
+            if is_solved:
+                f.write(f"TÌM THẤY LỜI GIẢI:\n")
+                f.write(f"Số bước: {len(path)}\n")
+                f.write(f"Đường đi: {' -> '.join(path)}\n")
+            else:
+                f.write(f"KHÔNG TÌM THẤY LỜI GIẢI\n")
+                pass
+            
+            f.write("-" * 80 + "\n")
+            
+            # Thống kê chi tiết
+            f.write("THỐNG KÊ HIỆU NĂNG:\n")
+            f.write(f"• Nodes đã mở rộng: {stats[0]:,}\n")
+            f.write(f"• Nodes đã tạo: {stats[1]:,}\n") 
+            f.write(f"• Nodes truy cập lại: {stats[2]:,}\n")
+            f.write(f"• Memory sử dụng: {stats[4]:.3f} MB\n")
+            f.write(f"• Thời gian thực hiện: {stats[3]:.6f} giây\n")
+            
+            # Hiệu suất
+            if stats[0] > 0:
+                efficiency = len(path) / stats[0]
+                f.write(f"• Hiệu suất (steps/nodes): {efficiency:.6f}\n")
+            
+            f.write("\n" + "=" * 80 + "\n\n")
+        
+        print(f"Đã tạo log chi tiết: {log_filename}")
+        
+    except Exception as e:
+        print(f"Lỗi khi tạo log: {e}")
 
 if __name__ == "__main__":
     

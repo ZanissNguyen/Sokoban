@@ -49,7 +49,7 @@ def replay_path_UI(init_state, path):
 if __name__ == "__main__":
     
     if len(sys.argv) < 3:
-        print("Usage: python solver.py <testcase_id> <method>")
+        print("Usage: python solverUI.py <testcase_id> <method>")
         sys.exit(1)
 
     tc_id = int(sys.argv[1])
