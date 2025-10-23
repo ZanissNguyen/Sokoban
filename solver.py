@@ -477,7 +477,7 @@ def solver(testcase, method, is_log=True, debug=True):
                 result['time_taken'],
                 result['memory_used']
             ]
-            create_log(tc_id, method, result['path'], result['is_solved'], stats, "")
+            create_log(testcase, method, result['path'], result['is_solved'], stats, "")
             print("export file")
 
         if (debug):
@@ -507,7 +507,7 @@ def solver(testcase, method, is_log=True, debug=True):
                 result['time_taken'],
                 result['memory_used']
             ]
-            create_log(tc_id, method, result['path'], result['is_solved'], stats, "")
+            create_log(testcase, method, result['path'], result['is_solved'], stats, "")
             print("export file")
 
         if (debug):
