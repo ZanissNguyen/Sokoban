@@ -7,15 +7,16 @@ import tracemalloc
 import gc
 
 def render_map(walls, boxes, player, goal, map_width, map_height):
-    map_template = [[' ' for _ in range(map_width)] for _ in range(map_height)]
+    map_template = [['.' for _ in range(map_width)] for _ in range(map_height)]
     new_map = [list(row) for row in map_template]
     for (x, y) in walls: 
         new_map[y][x] = '#'
-    for (x, y) in goal: new_map[y][x] = '.'
+    for (x, y) in goal: 
+        new_map[y][x] = '?'
     for (x, y) in boxes:
-        new_map[y][x] = '*' if (x, y) in goal else '$'
+        new_map[y][x] = '+' if (x, y) in goal else 'x'  # boxongoal hoặc box
     px, py = player
-    new_map[py][px] = '+' if (px, py) in goal else '@'
+    new_map[py][px] = '-' if (px, py) in goal else '@'  # player_on_goal hoặc player
     return [''.join(row) for row in new_map]
 
 def is_corner_deadlock(x, y, walls, goals):
@@ -177,12 +178,12 @@ class SokobanState:
 
 tile_char = {
     '#': 'wall',
-    ' ': 'floor',
-    '.': 'goal',
-    '$': 'box',
-    '*': 'box_on_goal',
+    '.': 'floor',
+    '?': 'goal',
+    'x': 'box',
+    '+': 'box_on_goal',
     '@': 'player',
-    '+': 'player_on_goal'
+    '-': 'player_on_goal'
 }
 
 direction = ['up', 'down', 'left', 'right']
@@ -190,11 +191,26 @@ direction = ['up', 'down', 'left', 'right']
 def load_testcase(tc):
     # return map, start, goal from testcases/tc_<id>.txt
     # parse it to global variables
-
+    # return MAP ONLY
     # load file and parse it
     # first line: width height
     # following lines: map
-
+    #I think no need for width height info.
+    filepath = f"testcases/level{tc}.txt"
+    try:
+        with open(filename, 'r', encoding='utf-8') as f:
+            map_data = [line.strip() for line in f.readlines()]
+        map_data = [line for line in map_data if line]
+        if not map_data:
+            print(f"Lỗi: Tệp testcase {filename} trống hoặc không hợp lệ.")
+            return None
+        return map_data
+    except FileNotFoundError:
+        print(f"Lỗi: Không tìm thấy tệp testcase: {filename}")
+        return None
+    except Exception as e:
+        print(f"Lỗi khi đọc tệp {filename}: {e}")
+        return None
     pass
 
 def BrFS(init_state, goal):
@@ -434,31 +450,31 @@ def loadInfoFromMap(map):
     goal = []
     for y, row in enumerate(map):
         for x, c in enumerate(row):
-            if (c == '$' or c == '*'):
+            if (c == 'x' or c == '+'):  # box hoặc box_on_goal
                 boxes.append((x, y))
-            if (c == '.' or c == '*' or c == '+'):
+            if (c == '?' or c == '+' or c == '-'):  # goal, box_on_goal, hoặc player_on_goal
                 goal.append((x, y))
-            if (c == '@' or c == '+'):
+            if (c == '@' or c == '-'):  # player hoặc player_on_goal
                 player = (x, y)
-            if (c == '#'): 
+            if (c == '#'):  # wall
                 walls.append((x,y))    
     return boxes, walls, player, goal
 
 # via UI pygame collect testcase, method 
 def solver(testcase, method, is_log=True, debug=True):
-    # init_map = load_testcase(testcase)
-    # if not init_map:
-    #     print(f"No testcase {tc_id}")
-    #     sys.exit(1)
-    init_map = [
-        "#### ####",
-        "#  ###  #",
-        "# $ * $ #",
-        "#   +   #",
-        "### .$###",
-        "  # . #  ",
-        "  #####  "
-    ]
+    init_map = load_testcase(testcase)
+    if not init_map:
+        print(f"No testcase {tc_id}")
+        sys.exit(1)
+    # init_map = [
+    #     "#### ####",
+    #     "#  ###  #",
+    #     "# $ * $ #",
+    #     "#   +   #",
+    #     "### .$###",
+    #     "  # . #  ",
+    #     "  #####  "
+    # ]
     init_boxes, init_walls, init_player, init_goal = loadInfoFromMap(init_map)
     init_state = SokobanState(init_map, init_boxes, init_walls, init_player, init_goal, [])
 

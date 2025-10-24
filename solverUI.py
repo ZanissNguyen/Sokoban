@@ -16,19 +16,19 @@ def drawUI(map):
     # without pygame:
     for y, row in enumerate(map):
         for x, c in enumerate(row):
-            if c == "#":
+            if c == "#":  # wall
                 screen.blit(wall, (x * tile_size, y * tile_size))
-            elif c == "+":
+            elif c == "-":  # player_on_goal
                 screen.blit(playerInGoal, (x * tile_size, y * tile_size))
-            elif c == "@":
+            elif c == "@":  # player
                 screen.blit(player, (x * tile_size, y * tile_size))
-            elif c == "*":
+            elif c == "+":  # box_on_goal
                 screen.blit(boxInGoal, (x * tile_size, y * tile_size))
-            elif c == "$":
-                    screen.blit(box, (x * tile_size, y * tile_size))
-            elif c == ".":
+            elif c == "x":  # box
+                screen.blit(box, (x * tile_size, y * tile_size))
+            elif c == "?":  # goal
                 screen.blit(goal, (x * tile_size, y * tile_size))
-            else:
+            else:  # available_move (.) hoặc các ký tự khác
                 screen.blit(tiles, (x * tile_size, y * tile_size))
 
     pygame.display.update()
