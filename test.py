@@ -2,6 +2,8 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 import heapq
 import time
+import tracemalloc
+import gc
 
 # test_map = [
 #     "#### ####",
@@ -43,27 +45,41 @@ import time
 # ]
 
 # Medium-Hard test case (default)
+test_map = [
+    "   #### ",
+    "####  # ",
+    "#  $  ##",
+    "# #$#  #",
+    "#@ $   #",
+    "#.###  #",
+    "#.#### #",
+    "#.     #",
+    "########"
+]
+
+# Medium test case
 # test_map = [
-#     "   #### ",
-#     "####  # ",
-#     "#  $  ##",
-#     "# #$#  #",
-#     "#@ $   #",
-#     "#.###  #",
-#     "#.#### #",
-#     "#.     #",
-#     "########"
+#     "#### ####",
+#     "#  ###  #",
+#     "# $ * $ #",
+#     "#   +   #",
+#     "### .$###",
+#     "  # . #  ",
+#     "  #####  "
 # ]
 
-# Hard test case
-test_map = [
-    "#################",
-    "#  #  #  #  #   #",
-    "#.$   #  #.$    #",
-    "#  #.$ .$   #   #",
-    "# @#  #  #  #   #",
-    "#################",
-]
+# Hardest test case
+# test_map = [
+#     "#########",
+#     "#####   #",
+#     "## $ $  #",
+#     "##.# #. #",
+#     "## $@$  #",
+#     "##.# #. #",
+#     "#       #",
+#     "#   #   #",
+#     "#########"
+# ]
 
 map_width = len(test_map[0])
 map_height = len(test_map)
@@ -102,66 +118,125 @@ def is_corner_deadlock(x, y, walls, goals):
 
 def is_edge_deadlock(x, y, walls, goals):
     """
-    Edge deadlock improved:
-    - If box is adjacent to a vertical wall (left or right),
-      check the contiguous vertical segment (up/down) until walls.
-      If no goal exists in that vertical span -> deadlock.
-    - If box is adjacent to a horizontal wall (up or down),
-      check contiguous horizontal span (left/right) until walls.
-      If no goal exists in that horizontal span -> deadlock.
-    Returns True if detected edge deadlock, False otherwise.
+    IMPROVED Edge deadlock detection - CONSERVATIVE VERSION
+    
+    Only detect edge deadlock when box is TRULY trapped:
+    - Box must be against a wall along entire corridor length
+    - NO openings/exits from the corridor  
+    - NO goals in the corridor
+    
+    This is more conservative to avoid false positives.
+    
+    Returns True if deadlock detected, False otherwise.
     """
-    # If this pos is a goal, it's not a deadlock.
     if (x, y) in goals:
         return False
-
-    # Helper: scan along column x from y up and down until hit wall,
-    # return True if we find any goal in that span.
-    def column_has_goal(x, y, walls, goals):
-        # scan up
-        yy = y
-        while (x, yy - 1) not in walls:
-            yy -= 1
+    
+    left_wall = (x - 1, y) in walls
+    right_wall = (x + 1, y) in walls
+    up_wall = (x, y - 1) in walls
+    down_wall = (x, y + 1) in walls
+    
+    # Check if this is a corner (handled by corner_deadlock)
+    if (left_wall and right_wall) or (up_wall and down_wall):
+        return False  # Corner, not edge
+    
+    # Helper: Check vertical corridor with NO escapes
+    def is_vertical_corridor_fully_blocked(x, y, walls, goals):
+        """
+        Returns True only if:
+        1. Box is against vertical wall along ENTIRE corridor
+        2. No horizontal exits available 
+        3. No goals in corridor
+        """
+        # Determine which side has wall
+        wall_on_left = (x - 1, y) in walls
+        wall_on_right = (x + 1, y) in walls
+        
+        if not (wall_on_left or wall_on_right):
+            return False  # No vertical wall
+        
+        # Scan up to find boundary
+        y_top = y
+        while (x, y_top - 1) not in walls:
+            y_top -= 1
+            # Check if wall continues along corridor
+            if wall_on_left and (x - 1, y_top) not in walls:
+                return False  # Opening on left
+            if wall_on_right and (x + 1, y_top) not in walls:
+                return False  # Opening on right
+        
+        # Scan down to find boundary
+        y_bottom = y
+        while (x, y_bottom + 1) not in walls:
+            y_bottom += 1
+            # Check if wall continues along corridor
+            if wall_on_left and (x - 1, y_bottom) not in walls:
+                return False  # Opening on left
+            if wall_on_right and (x + 1, y_bottom) not in walls:
+                return False  # Opening on right
+        
+        # Check if any goal in corridor
+        for yy in range(y_top, y_bottom + 1):
             if (x, yy) in goals:
-                return True
-        # scan down
-        yy = y
-        while (x, yy + 1) not in walls:
-            yy += 1
-            if (x, yy) in goals:
-                return True
-        # also check current cell (already did earlier), but safe to check
-        return False
-
-    # Helper: scan along row y from x left and right until hit wall,
-    # return True if any goal in that span.
-    def row_has_goal(x, y, walls, goals):
-        # scan left
-        xx = x
-        while (xx - 1, y) not in walls:
-            xx -= 1
+                return False
+        
+        # Truly blocked corridor with no goals
+        return True
+    
+    # Helper: Check horizontal corridor with NO escapes
+    def is_horizontal_corridor_fully_blocked(x, y, walls, goals):
+        """
+        Returns True only if:
+        1. Box is against horizontal wall along ENTIRE corridor
+        2. No vertical exits available
+        3. No goals in corridor
+        """
+        # Determine which side has wall
+        wall_on_top = (x, y - 1) in walls
+        wall_on_bottom = (x, y + 1) in walls
+        
+        if not (wall_on_top or wall_on_bottom):
+            return False  # No horizontal wall
+        
+        # Scan left to find boundary
+        x_left = x
+        while (x_left - 1, y) not in walls:
+            x_left -= 1
+            # Check if wall continues along corridor
+            if wall_on_top and (x_left, y - 1) not in walls:
+                return False  # Opening on top
+            if wall_on_bottom and (x_left, y + 1) not in walls:
+                return False  # Opening on bottom
+        
+        # Scan right to find boundary
+        x_right = x
+        while (x_right + 1, y) not in walls:
+            x_right += 1
+            # Check if wall continues along corridor
+            if wall_on_top and (x_right, y - 1) not in walls:
+                return False  # Opening on top
+            if wall_on_bottom and (x_right, y + 1) not in walls:
+                return False  # Opening on bottom
+        
+        # Check if any goal in corridor
+        for xx in range(x_left, x_right + 1):
             if (xx, y) in goals:
-                return True
-        # scan right
-        xx = x
-        while (xx + 1, y) not in walls:
-            xx += 1
-            if (xx, y) in goals:
-                return True
-        return False
-
-    # Vertical adjacency: cannot move left/right => movement limited to column
-    if ((x - 1, y) in walls) or ((x + 1, y) in walls):
-        # if there is NO goal in the contiguous vertical segment -> deadlock
-        if not column_has_goal(x, y, walls, goals):
+                return False
+        
+        # Truly blocked corridor with no goals
+        return True
+    
+    # Vertical edge: wall on left OR right (but not both)
+    if (left_wall or right_wall) and not (left_wall and right_wall):
+        if is_vertical_corridor_fully_blocked(x, y, walls, goals):
             return True
-
-    # Horizontal adjacency: cannot move up/down => movement limited to row
-    if ((x, y - 1) in walls) or ((x, y + 1) in walls):
-        # if there is NO goal in the contiguous horizontal segment -> deadlock
-        if not row_has_goal(x, y, walls, goals):
+    
+    # Horizontal edge: wall on top OR bottom (but not both)  
+    if (up_wall or down_wall) and not (up_wall and down_wall):
+        if is_horizontal_corridor_fully_blocked(x, y, walls, goals):
             return True
-
+    
     return False
 
 def is_block_2x2_deadlock(x, y, boxes, walls, goals):
@@ -213,13 +288,12 @@ class State:
     def is_deadlock(self):
         for (x, y) in self.boxes:
             if is_corner_deadlock(x, y, self.walls, self.goal):
-                # print("case 1: corner deadlock")
                 return True
-            # if is_edge_deadlock(x, y, self.walls, self.goal):
-            #     print("case 2: edge deadlock")
-            #     return True
+            # Edge deadlock - ENABLED with conservative improved version
+            # Only detects truly blocked corridors with no escape routes
+            if is_edge_deadlock(x, y, self.walls, self.goal):
+                return True
             if is_block_2x2_deadlock(x, y, self.boxes, self.walls, self.goal):
-                # print("case 3: 2x2 block deadlock")
                 return True
         return False
 
@@ -337,6 +411,11 @@ def BrFS(init_state, goal):
     # implement Breadth-First Search algorithm
     # return path (up, down, left, right) from start to goal
     # if no path, return None
+    gc.collect()
+    gc.collect()
+    gc.collect()
+    tracemalloc.start()
+    
     start_time = time.time()
     generated_node = 0
     expand_node = 0
@@ -353,12 +432,15 @@ def BrFS(init_state, goal):
         # Check if current state is goal
         if current_state.is_win(goal):
             end_time = time.time()
+            current, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
             return {
                 'path': current_state.path,
                 'expand_node': expand_node,
                 'generated_node': generated_node,
                 'revisited_node': revisited_node,
-                'time_taken': end_time - start_time
+                'time_taken': end_time - start_time,
+                'memory_used': peak / (1024 * 1024)
             }
         
         # Explore neighbors
@@ -385,12 +467,15 @@ def BrFS(init_state, goal):
             # print(f"Exploring path length: {len(state.path)}")
     
     end_time = time.time()
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
     return {
         'path': None,
         'expand_node': expand_node,
         'generated_node': generated_node,
         'revisited_node': revisited_node,
-        'time_taken': end_time - start_time
+        'time_taken': end_time - start_time,
+        'memory_used': peak / (1024 * 1024)
     }  # No solution found
 
 def A_star(init_state, goal):
@@ -404,6 +489,11 @@ def A_star(init_state, goal):
     Returns:
         dict: solution with path and statistics
     """
+    gc.collect()
+    gc.collect()
+    gc.collect()
+    tracemalloc.start()
+    
     start_time = time.time()
     generated_node = 0
     expand_node = 0
@@ -427,12 +517,15 @@ def A_star(init_state, goal):
         # Check if goal state
         if current_state.is_win(goal):
             end_time = time.time()
+            current, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
             return {
                 'path': current_state.path,
                 'expand_node': expand_node,
                 'generated_node': generated_node,
                 'revisited_node': revisited_node,
-                'time_taken': end_time - start_time
+                'time_taken': end_time - start_time,
+                'memory_used': peak / (1024 * 1024)
             }
         
         # Get current g_cost
@@ -470,12 +563,15 @@ def A_star(init_state, goal):
     
     # No solution found
     end_time = time.time()
+    current, peak = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
     return {
         'path': None,
         'expand_node': expand_node,
         'generated_node': generated_node,
         'revisited_node': revisited_node,
-        'time_taken': end_time - start_time
+        'time_taken': end_time - start_time,
+        'memory_used': peak / (1024 * 1024)
     }
 
 def A_star_h(current_state, goal):
@@ -551,15 +647,16 @@ if __name__ == "__main__":
         result = BrFS(init_state, init_goal)
         
         if result['path']:
-            print(f"\n✓ Solution found!")
+            print(f"\nSolution found!")
             print(f"Path length: {len(result['path'])}")
             print(f"Expanded nodes: {result['expand_node']}")
             print(f"Generated nodes: {result['generated_node']}")
             print(f"Revisited nodes: {result['revisited_node']}")
             print(f"Time taken: {result['time_taken']:.4f} seconds")
+            print(f"Memory used: {result['memory_used']:.2f} MB")
             print(f"\nPath: {result['path']}")
         else:
-            print("\n✗ No solution found!")
+            print("\nNo solution found!")
     
     elif choice == "2":
         print("\n" + "="*50)
@@ -568,15 +665,16 @@ if __name__ == "__main__":
         result = A_star(init_state, init_goal)
         
         if result['path']:
-            print(f"\n✓ Solution found!")
+            print(f"\nSolution found!")
             print(f"Path length: {len(result['path'])}")
             print(f"Expanded nodes: {result['expand_node']}")
             print(f"Generated nodes: {result['generated_node']}")
             print(f"Revisited nodes: {result['revisited_node']}")
             print(f"Time taken: {result['time_taken']:.4f} seconds")
+            print(f"Memory used: {result['memory_used']:.2f} MB")
             print(f"\nPath: {result['path']}")
         else:
-            print("\n✗ No solution found!")
+            print("\nNo solution found!")
     
     elif choice == "3":
         print("\n" + "="*50)
@@ -610,8 +708,8 @@ if __name__ == "__main__":
             astar_path_len = "N/A"
         
         print("{:<25} {:<20} {:<20}".format("Solution found:", 
-                                             "✓" if bfs_result['path'] else "✗",
-                                             "✓" if astar_result['path'] else "✗"))
+                                             "YES" if bfs_result['path'] else "NO",
+                                             "YES" if astar_result['path'] else "NO"))
         print("{:<25} {:<20} {:<20}".format("Path length:", 
                                              bfs_path_len, astar_path_len))
         print("{:<25} {:<20} {:<20}".format("Expanded nodes:", 
@@ -626,6 +724,9 @@ if __name__ == "__main__":
         print("{:<25} {:<20.4f} {:<20.4f}".format("Time taken (s):", 
                                                     bfs_result['time_taken'], 
                                                     astar_result['time_taken']))
+        print("{:<25} {:<20.2f} {:<20.2f}".format("Memory used (MB):", 
+                                                    bfs_result['memory_used'], 
+                                                    astar_result['memory_used']))
         
         # Calculate speedup
         if bfs_result['time_taken'] > 0 and astar_result['time_taken'] > 0:
@@ -636,6 +737,25 @@ if __name__ == "__main__":
             else:
                 print(f"BFS is {1/speedup:.2f}x faster than A*")
             print("="*50)
+        # Compare memory usage
+        print("\n" + "="*50)
+        print("MEMORY USAGE COMPARISON")
+        print("="*50)
+        bfs_mem = bfs_result.get('memory_used', 0)
+        astar_mem = astar_result.get('memory_used', 0)
+        print(f"BFS memory used: {bfs_mem:.2f} MB")
+        print(f"A*  memory used: {astar_mem:.2f} MB")
+
+        if bfs_mem > astar_mem:
+            diff = bfs_mem - astar_mem
+            ratio = bfs_mem / astar_mem if astar_mem > 0 else float('inf')
+            print(f"\nBFS used more memory by {diff:.2f} MB ({ratio:.2f}x)")
+        elif astar_mem > bfs_mem:
+            diff = astar_mem - bfs_mem
+            ratio = astar_mem / bfs_mem if bfs_mem > 0 else float('inf')
+            print(f"\nA* used more memory by {diff:.2f} MB ({ratio:.2f}x)")
+        else:
+            print("\nBoth algorithms used the same amount of memory.")
     
     else:
         print("Invalid choice!")

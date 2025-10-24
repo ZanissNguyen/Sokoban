@@ -28,23 +28,126 @@ def is_corner_deadlock(x, y, walls, goals):
     return (left_wall or right_wall) and (up_wall or down_wall)
 
 def is_edge_deadlock(x, y, walls, goals):
+    """
+    IMPROVED Edge deadlock detection - CONSERVATIVE VERSION
+    
+    Only detect edge deadlock when box is TRULY trapped:
+    - Box must be against a wall along entire corridor length
+    - NO openings/exits from the corridor  
+    - NO goals in the corridor
+    
+    This is more conservative to avoid false positives.
+    
+    Returns True if deadlock detected, False otherwise.
+    """
     if (x, y) in goals:
         return False
-
-    # --- Vertical wall check ---
-    if (x-1, y) in walls or (x+1, y) in walls:
-        # Box is against a vertical wall, scan entire column
-        same_col_goals = any(gx == x for gx, gy in goals)
-        if not same_col_goals:
+    
+    left_wall = (x - 1, y) in walls
+    right_wall = (x + 1, y) in walls
+    up_wall = (x, y - 1) in walls
+    down_wall = (x, y + 1) in walls
+    
+    # Check if this is a corner (handled by corner_deadlock)
+    if (left_wall and right_wall) or (up_wall and down_wall):
+        return False  # Corner, not edge
+    
+    # Helper: Check vertical corridor with NO escapes
+    def is_vertical_corridor_fully_blocked(x, y, walls, goals):
+        """
+        Returns True only if:
+        1. Box is against vertical wall along ENTIRE corridor
+        2. No horizontal exits available 
+        3. No goals in corridor
+        """
+        # Determine which side has wall
+        wall_on_left = (x - 1, y) in walls
+        wall_on_right = (x + 1, y) in walls
+        
+        if not (wall_on_left or wall_on_right):
+            return False  # No vertical wall
+        
+        # Scan up to find boundary
+        y_top = y
+        while (x, y_top - 1) not in walls:
+            y_top -= 1
+            # Check if wall continues along corridor
+            if wall_on_left and (x - 1, y_top) not in walls:
+                return False  # Opening on left
+            if wall_on_right and (x + 1, y_top) not in walls:
+                return False  # Opening on right
+        
+        # Scan down to find boundary
+        y_bottom = y
+        while (x, y_bottom + 1) not in walls:
+            y_bottom += 1
+            # Check if wall continues along corridor
+            if wall_on_left and (x - 1, y_bottom) not in walls:
+                return False  # Opening on left
+            if wall_on_right and (x + 1, y_bottom) not in walls:
+                return False  # Opening on right
+        
+        # Check if any goal in corridor
+        for yy in range(y_top, y_bottom + 1):
+            if (x, yy) in goals:
+                return False
+        
+        # Truly blocked corridor with no goals
+        return True
+    
+    # Helper: Check horizontal corridor with NO escapes
+    def is_horizontal_corridor_fully_blocked(x, y, walls, goals):
+        """
+        Returns True only if:
+        1. Box is against horizontal wall along ENTIRE corridor
+        2. No vertical exits available
+        3. No goals in corridor
+        """
+        # Determine which side has wall
+        wall_on_top = (x, y - 1) in walls
+        wall_on_bottom = (x, y + 1) in walls
+        
+        if not (wall_on_top or wall_on_bottom):
+            return False  # No horizontal wall
+        
+        # Scan left to find boundary
+        x_left = x
+        while (x_left - 1, y) not in walls:
+            x_left -= 1
+            # Check if wall continues along corridor
+            if wall_on_top and (x_left, y - 1) not in walls:
+                return False  # Opening on top
+            if wall_on_bottom and (x_left, y + 1) not in walls:
+                return False  # Opening on bottom
+        
+        # Scan right to find boundary
+        x_right = x
+        while (x_right + 1, y) not in walls:
+            x_right += 1
+            # Check if wall continues along corridor
+            if wall_on_top and (x_right, y - 1) not in walls:
+                return False  # Opening on top
+            if wall_on_bottom and (x_right, y + 1) not in walls:
+                return False  # Opening on bottom
+        
+        # Check if any goal in corridor
+        for xx in range(x_left, x_right + 1):
+            if (xx, y) in goals:
+                return False
+        
+        # Truly blocked corridor with no goals
+        return True
+    
+    # Vertical edge: wall on left OR right (but not both)
+    if (left_wall or right_wall) and not (left_wall and right_wall):
+        if is_vertical_corridor_fully_blocked(x, y, walls, goals):
             return True
-
-    # --- Horizontal wall check ---
-    if (x, y-1) in walls or (x, y+1) in walls:
-        # Box is against a horizontal wall, scan entire row
-        same_row_goals = any(gy == y for gx, gy in goals)
-        if not same_row_goals:
+    
+    # Horizontal edge: wall on top OR bottom (but not both)  
+    if (up_wall or down_wall) and not (up_wall and down_wall):
+        if is_horizontal_corridor_fully_blocked(x, y, walls, goals):
             return True
-
+    
     return False
 
 def is_block_2x2_deadlock(x, y, boxes, walls, goals):
@@ -97,9 +200,10 @@ class SokobanState:
         for (x, y) in self.boxes:
             if is_corner_deadlock(x, y, self.walls, self.goal):
                 return True
-            # tạm thời bị disable
-            # if is_edge_deadlock(x, y, self.walls, self.goal):
-            #     return True
+            # Edge deadlock - ENABLED with conservative improved version
+            # Only detects truly blocked corridors with no escape routes
+            if is_edge_deadlock(x, y, self.walls, self.goal):
+                return True
             if is_block_2x2_deadlock(x, y, self.boxes, self.walls, self.goal):
                 return True
         return False
