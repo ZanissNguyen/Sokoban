@@ -198,18 +198,18 @@ def load_testcase(tc):
     #I think no need for width height info.
     filepath = f"testcases/level{tc}.txt"
     try:
-        with open(filename, 'r', encoding='utf-8') as f:
+        with open(filepath, 'r', encoding='utf-8') as f:
             map_data = [line.strip() for line in f.readlines()]
         map_data = [line for line in map_data if line]
         if not map_data:
-            print(f"Lỗi: Tệp testcase {filename} trống hoặc không hợp lệ.")
+            print(f"Testcase {filename} trống hoặc không hợp lệ.")
             return None
         return map_data
     except FileNotFoundError:
-        print(f"Lỗi: Không tìm thấy tệp testcase: {filename}")
+        print(f"Không tìm thấy testcase: {filename}")
         return None
     except Exception as e:
-        print(f"Lỗi khi đọc tệp {filename}: {e}")
+        print(f"Lỗi khi đọc {filename}: {e}")
         return None
     pass
 
