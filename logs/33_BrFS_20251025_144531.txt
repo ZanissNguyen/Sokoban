@@ -1,0 +1,22 @@
+================================================================================
+SOKOBAN SOLVER - DETAILED ANALYSIS
+================================================================================
+Thời gian: 2025-10-25 14:45:31
+Test Case: 33
+Thuật toán: BrFS
+Thông tin Level: 
+--------------------------------------------------------------------------------
+TÌM THẤY LỜI GIẢI:
+Số bước: 173
+Đường đi: down -> left -> left -> left -> down -> right -> down -> down -> right -> right -> right -> down -> down -> left -> left -> up -> down -> right -> right -> up -> up -> left -> up -> up -> left -> up -> left -> left -> down -> right -> down -> down -> right -> right -> up -> up -> left -> right -> down -> down -> left -> left -> up -> up -> right -> up -> up -> right -> down -> down -> down -> up -> up -> right -> right -> down -> down -> left -> down -> left -> up -> up -> down -> right -> right -> up -> up -> left -> left -> down -> left -> left -> down -> down -> right -> down -> down -> right -> right -> up -> up -> down -> down -> left -> left -> up -> up -> right -> up -> up -> up -> up -> left -> down -> right -> down -> down -> down -> left -> left -> up -> up -> left -> up -> right -> down -> down -> down -> right -> right -> up -> up -> left -> right -> up -> up -> left -> down -> left -> down -> up -> right -> right -> right -> right -> down -> down -> left -> down -> left -> up -> up -> down -> right -> right -> up -> up -> left -> left -> down -> down -> down -> left -> down -> down -> right -> right -> up -> up -> left -> up -> up -> left -> up -> left -> left -> down -> right -> up -> right -> right -> right -> right -> down -> down -> left -> down -> left -> up -> down -> left -> left -> up
+--------------------------------------------------------------------------------
+THỐNG KÊ HIỆU NĂNG:
+• Nodes đã mở rộng: 22,345
+• Nodes đã tạo: 53,126
+• Nodes truy cập lại: 28,649
+• Memory sử dụng: 37.739 MB
+• Thời gian thực hiện: 12.443357 giây
+• Hiệu suất (steps/nodes): 0.007742
+
+================================================================================
+

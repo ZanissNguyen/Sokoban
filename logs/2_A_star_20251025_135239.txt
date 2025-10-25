@@ -1,0 +1,22 @@
+================================================================================
+SOKOBAN SOLVER - DETAILED ANALYSIS
+================================================================================
+Thời gian: 2025-10-25 13:52:39
+Test Case: 2
+Thuật toán: A_star
+Thông tin Level: 
+--------------------------------------------------------------------------------
+TÌM THẤY LỜI GIẢI:
+Số bước: 211
+Đường đi: up -> left -> up -> up -> right -> down -> right -> right -> down -> down -> right -> up -> right -> right -> right -> right -> right -> up -> right -> right -> right -> up -> right -> down -> left -> left -> left -> left -> down -> down -> right -> up -> left -> up -> right -> right -> right -> up -> right -> right -> down -> left -> up -> left -> down -> left -> left -> down -> left -> left -> left -> left -> left -> left -> left -> up -> up -> right -> down -> left -> down -> right -> right -> right -> right -> right -> right -> down -> right -> up -> left -> up -> right -> right -> right -> up -> right -> right -> down -> left -> left -> left -> left -> up -> left -> down -> right -> down -> left -> left -> left -> down -> left -> up -> left -> left -> up -> left -> left -> left -> left -> down -> down -> right -> up -> left -> up -> right -> right -> right -> up -> right -> down -> left -> down -> right -> right -> right -> right -> right -> right -> down -> right -> up -> left -> up -> right -> right -> right -> up -> right -> right -> down -> left -> left -> left -> left -> up -> left -> down -> right -> right -> right -> right -> right -> down -> down -> left -> up -> right -> up -> left -> left -> left -> left -> down -> left -> left -> left -> left -> left -> left -> down -> left -> up -> right -> right -> right -> right -> right -> right -> right -> up -> up -> left -> down -> right -> right -> right -> right -> down -> down -> left -> up -> right -> up -> left -> left -> left -> down -> left -> left -> left -> left -> left -> left -> up -> left -> left -> left -> right -> right -> right -> down -> right -> right -> right -> up -> up -> left -> down
+--------------------------------------------------------------------------------
+THỐNG KÊ HIỆU NĂNG:
+• Nodes đã mở rộng: 216,984
+• Nodes đã tạo: 575,087
+• Nodes truy cập lại: 341,460
+• Memory sử dụng: 392.464 MB
+• Thời gian thực hiện: 189.897973 giây
+• Hiệu suất (steps/nodes): 0.000972
+
+================================================================================
+

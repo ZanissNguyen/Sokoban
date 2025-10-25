@@ -1,0 +1,22 @@
+================================================================================
+SOKOBAN SOLVER - DETAILED ANALYSIS
+================================================================================
+Thời gian: 2025-10-25 14:02:11
+Test Case: 8
+Thuật toán: A_star
+Thông tin Level: 
+--------------------------------------------------------------------------------
+TÌM THẤY LỜI GIẢI:
+Số bước: 89
+Đường đi: up -> up -> right -> right -> down -> down -> down -> left -> down -> left -> up -> up -> up -> left -> up -> right -> down -> down -> down -> right -> right -> up -> up -> left -> right -> down -> down -> left -> left -> up -> up -> left -> up -> left -> left -> down -> right -> down -> down -> right -> right -> up -> up -> left -> up -> left -> down -> right -> right -> right -> right -> down -> down -> left -> down -> left -> up -> up -> down -> right -> right -> up -> up -> left -> left -> left -> up -> up -> right -> down -> down -> right -> right -> up -> left -> down -> left -> left -> up -> left -> left -> down -> right -> right -> right -> right -> up -> right -> down
+--------------------------------------------------------------------------------
+THỐNG KÊ HIỆU NĂNG:
+• Nodes đã mở rộng: 13,885
+• Nodes đã tạo: 35,224
+• Nodes truy cập lại: 19,425
+• Memory sử dụng: 16.798 MB
+• Thời gian thực hiện: 11.665228 giây
+• Hiệu suất (steps/nodes): 0.006410
+
+================================================================================
+

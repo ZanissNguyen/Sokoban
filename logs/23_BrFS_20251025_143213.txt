@@ -1,0 +1,22 @@
+================================================================================
+SOKOBAN SOLVER - DETAILED ANALYSIS
+================================================================================
+Thời gian: 2025-10-25 14:32:13
+Test Case: 23
+Thuật toán: BrFS
+Thông tin Level: 
+--------------------------------------------------------------------------------
+TÌM THẤY LỜI GIẢI:
+Số bước: 91
+Đường đi: down -> down -> down -> right -> right -> up -> up -> up -> left -> right -> down -> down -> down -> left -> left -> up -> up -> right -> left -> left -> up -> up -> up -> right -> right -> down -> down -> up -> up -> left -> left -> down -> down -> down -> right -> down -> down -> right -> right -> up -> up -> right -> up -> up -> left -> right -> down -> down -> left -> down -> down -> left -> left -> up -> up -> left -> up -> up -> up -> right -> right -> down -> right -> right -> down -> down -> left -> left -> right -> right -> up -> up -> left -> left -> down -> left -> down -> right -> up -> up -> right -> right -> down -> left -> down -> left -> left -> left -> up -> right -> right
+--------------------------------------------------------------------------------
+THỐNG KÊ HIỆU NĂNG:
+• Nodes đã mở rộng: 5,574
+• Nodes đã tạo: 13,666
+• Nodes truy cập lại: 7,254
+• Memory sử dụng: 7.184 MB
+• Thời gian thực hiện: 3.214356 giây
+• Hiệu suất (steps/nodes): 0.016326
+
+================================================================================
+

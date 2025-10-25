@@ -1,0 +1,22 @@
+================================================================================
+SOKOBAN SOLVER - DETAILED ANALYSIS
+================================================================================
+Thời gian: 2025-10-25 14:45:05
+Test Case: 30
+Thuật toán: A_star
+Thông tin Level: 
+--------------------------------------------------------------------------------
+TÌM THẤY LỜI GIẢI:
+Số bước: 161
+Đường đi: left -> down -> down -> down -> right -> right -> right -> down -> up -> left -> left -> left -> up -> up -> up -> left -> left -> down -> down -> down -> right -> right -> right -> down -> right -> down -> right -> down -> right -> right -> up -> left -> up -> left -> up -> left -> up -> left -> right -> down -> right -> down -> right -> down -> down -> left -> up -> left -> up -> left -> up -> left -> up -> up -> down -> down -> left -> left -> up -> up -> up -> up -> right -> right -> right -> down -> left -> down -> down -> down -> right -> down -> right -> down -> right -> right -> up -> left -> up -> left -> left -> down -> right -> up -> right -> down -> up -> left -> left -> left -> up -> up -> up -> up -> left -> left -> down -> down -> down -> down -> right -> right -> right -> down -> right -> right -> up -> left -> up -> left -> right -> down -> down -> left -> up -> left -> up -> up -> up -> down -> down -> down -> right -> right -> up -> left -> down -> left -> left -> left -> up -> up -> up -> up -> right -> right -> down -> down -> down -> right -> down -> left -> right -> down -> right -> right -> right -> down -> down -> left -> up -> right -> up -> left -> down -> left -> up -> right -> up -> left -> left
+--------------------------------------------------------------------------------
+THỐNG KÊ HIỆU NĂNG:
+• Nodes đã mở rộng: 23,878
+• Nodes đã tạo: 61,924
+• Nodes truy cập lại: 34,831
+• Memory sử dụng: 39.246 MB
+• Thời gian thực hiện: 18.592034 giây
+• Hiệu suất (steps/nodes): 0.006743
+
+================================================================================
+

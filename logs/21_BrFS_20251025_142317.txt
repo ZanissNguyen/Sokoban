@@ -1,0 +1,22 @@
+================================================================================
+SOKOBAN SOLVER - DETAILED ANALYSIS
+================================================================================
+Thời gian: 2025-10-25 14:23:17
+Test Case: 21
+Thuật toán: BrFS
+Thông tin Level: 
+--------------------------------------------------------------------------------
+TÌM THẤY LỜI GIẢI:
+Số bước: 185
+Đường đi: down -> left -> down -> left -> left -> up -> up -> right -> right -> down -> right -> right -> up -> up -> up -> left -> left -> down -> down -> left -> left -> down -> down -> right -> right -> down -> right -> right -> up -> up -> down -> down -> left -> left -> up -> left -> left -> up -> up -> right -> right -> down -> right -> right -> down -> down -> left -> left -> down -> left -> up -> right -> right -> right -> up -> up -> left -> left -> down -> up -> right -> right -> down -> down -> left -> left -> up -> up -> up -> up -> up -> right -> right -> down -> down -> down -> right -> right -> up -> up -> left -> right -> down -> down -> left -> left -> left -> left -> down -> down -> right -> right -> up -> down -> left -> left -> up -> up -> up -> up -> up -> right -> right -> down -> right -> right -> down -> down -> left -> left -> left -> right -> down -> down -> left -> left -> up -> up -> up -> left -> left -> down -> down -> right -> left -> up -> up -> right -> right -> down -> right -> right -> right -> right -> up -> up -> left -> left -> down -> up -> right -> right -> down -> down -> left -> left -> down -> down -> left -> left -> up -> left -> left -> up -> up -> right -> right -> right -> left -> left -> left -> down -> down -> right -> right -> down -> down -> left -> up -> right -> right -> right -> up -> up -> right -> right -> up -> up -> left -> left -> down -> left -> left -> down -> down
+--------------------------------------------------------------------------------
+THỐNG KÊ HIỆU NĂNG:
+• Nodes đã mở rộng: 59,090
+• Nodes đã tạo: 137,883
+• Nodes truy cập lại: 71,839
+• Memory sử dụng: 106.157 MB
+• Thời gian thực hiện: 43.627669 giây
+• Hiệu suất (steps/nodes): 0.003131
+
+================================================================================
+
