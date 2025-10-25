@@ -10,14 +10,15 @@ def render_map(walls, boxes, player, goal, map_width, map_height):
     map_template = [['.' for _ in range(map_width)] for _ in range(map_height)]
     new_map = [list(row) for row in map_template]
     for (x, y) in walls: 
-        new_map[y][x] = '#'
+        new_map[y][x] = tile_char['wall']
     for (x, y) in goal: 
-        new_map[y][x] = '?'
+        new_map[y][x] = tile_char['goal']
     for (x, y) in boxes:
-        new_map[y][x] = '+' if (x, y) in goal else 'x'  # boxongoal hoặc box
+        new_map[y][x] = tile_char['box_on_goal'] if (x, y) in goal else tile_char['box']  # boxongoal hoặc box
     px, py = player
-    new_map[py][px] = '-' if (px, py) in goal else '@'  # player_on_goal hoặc player
-    return [''.join(row) for row in new_map]
+    new_map[py][px] = tile_char['player_on_goal'] if (px, py) in goal else tile_char['player']  # player_on_goal hoặc player
+    new_map = [''.join(row) for row in new_map]
+    return new_map
 
 def is_corner_deadlock(x, y, walls, goals):
     if (x, y) in goals: 
@@ -29,23 +30,126 @@ def is_corner_deadlock(x, y, walls, goals):
     return (left_wall or right_wall) and (up_wall or down_wall)
 
 def is_edge_deadlock(x, y, walls, goals):
+    """
+    IMPROVED Edge deadlock detection - CONSERVATIVE VERSION
+    
+    Only detect edge deadlock when box is TRULY trapped:
+    - Box must be against a wall along entire corridor length
+    - NO openings/exits from the corridor  
+    - NO goals in the corridor
+    
+    This is more conservative to avoid false positives.
+    
+    Returns True if deadlock detected, False otherwise.
+    """
     if (x, y) in goals:
         return False
-
-    # --- Vertical wall check ---
-    if (x-1, y) in walls or (x+1, y) in walls:
-        # Box is against a vertical wall, scan entire column
-        same_col_goals = any(gx == x for gx, gy in goals)
-        if not same_col_goals:
+    
+    left_wall = (x - 1, y) in walls
+    right_wall = (x + 1, y) in walls
+    up_wall = (x, y - 1) in walls
+    down_wall = (x, y + 1) in walls
+    
+    # Check if this is a corner (handled by corner_deadlock)
+    if (left_wall and right_wall) or (up_wall and down_wall):
+        return False  # Corner, not edge
+    
+    # Helper: Check vertical corridor with NO escapes
+    def is_vertical_corridor_fully_blocked(x, y, walls, goals):
+        """
+        Returns True only if:
+        1. Box is against vertical wall along ENTIRE corridor
+        2. No horizontal exits available 
+        3. No goals in corridor
+        """
+        # Determine which side has wall
+        wall_on_left = (x - 1, y) in walls
+        wall_on_right = (x + 1, y) in walls
+        
+        if not (wall_on_left or wall_on_right):
+            return False  # No vertical wall
+        
+        # Scan up to find boundary
+        y_top = y
+        while (x, y_top - 1) not in walls:
+            y_top -= 1
+            # Check if wall continues along corridor
+            if wall_on_left and (x - 1, y_top) not in walls:
+                return False  # Opening on left
+            if wall_on_right and (x + 1, y_top) not in walls:
+                return False  # Opening on right
+        
+        # Scan down to find boundary
+        y_bottom = y
+        while (x, y_bottom + 1) not in walls:
+            y_bottom += 1
+            # Check if wall continues along corridor
+            if wall_on_left and (x - 1, y_bottom) not in walls:
+                return False  # Opening on left
+            if wall_on_right and (x + 1, y_bottom) not in walls:
+                return False  # Opening on right
+        
+        # Check if any goal in corridor
+        for yy in range(y_top, y_bottom + 1):
+            if (x, yy) in goals:
+                return False
+        
+        # Truly blocked corridor with no goals
+        return True
+    
+    # Helper: Check horizontal corridor with NO escapes
+    def is_horizontal_corridor_fully_blocked(x, y, walls, goals):
+        """
+        Returns True only if:
+        1. Box is against horizontal wall along ENTIRE corridor
+        2. No vertical exits available
+        3. No goals in corridor
+        """
+        # Determine which side has wall
+        wall_on_top = (x, y - 1) in walls
+        wall_on_bottom = (x, y + 1) in walls
+        
+        if not (wall_on_top or wall_on_bottom):
+            return False  # No horizontal wall
+        
+        # Scan left to find boundary
+        x_left = x
+        while (x_left - 1, y) not in walls:
+            x_left -= 1
+            # Check if wall continues along corridor
+            if wall_on_top and (x_left, y - 1) not in walls:
+                return False  # Opening on top
+            if wall_on_bottom and (x_left, y + 1) not in walls:
+                return False  # Opening on bottom
+        
+        # Scan right to find boundary
+        x_right = x
+        while (x_right + 1, y) not in walls:
+            x_right += 1
+            # Check if wall continues along corridor
+            if wall_on_top and (x_right, y - 1) not in walls:
+                return False  # Opening on top
+            if wall_on_bottom and (x_right, y + 1) not in walls:
+                return False  # Opening on bottom
+        
+        # Check if any goal in corridor
+        for xx in range(x_left, x_right + 1):
+            if (xx, y) in goals:
+                return False
+        
+        # Truly blocked corridor with no goals
+        return True
+    
+    # Vertical edge: wall on left OR right (but not both)
+    if (left_wall or right_wall) and not (left_wall and right_wall):
+        if is_vertical_corridor_fully_blocked(x, y, walls, goals):
             return True
-
-    # --- Horizontal wall check ---
-    if (x, y-1) in walls or (x, y+1) in walls:
-        # Box is against a horizontal wall, scan entire row
-        same_row_goals = any(gy == y for gx, gy in goals)
-        if not same_row_goals:
+    
+    # Horizontal edge: wall on top OR bottom (but not both)  
+    if (up_wall or down_wall) and not (up_wall and down_wall):
+        if is_horizontal_corridor_fully_blocked(x, y, walls, goals):
             return True
-
+    
     return False
 
 def is_block_2x2_deadlock(x, y, boxes, walls, goals):
@@ -98,9 +202,10 @@ class SokobanState:
         for (x, y) in self.boxes:
             if is_corner_deadlock(x, y, self.walls, self.goal):
                 return True
-            # tạm thời bị disable
-            # if is_edge_deadlock(x, y, self.walls, self.goal):
-            #     return True
+            # Edge deadlock - ENABLED with conservative improved version
+            # Only detects truly blocked corridors with no escape routes
+            if is_edge_deadlock(x, y, self.walls, self.goal):
+                return True
             if is_block_2x2_deadlock(x, y, self.boxes, self.walls, self.goal):
                 return True
         return False
@@ -151,9 +256,6 @@ class SokobanState:
             elif (direction == "right"):
                 new_box = (new_player[0] + 1, new_player[1])
 
-            # print(self.walls)
-            # print(new_box)
-            # print(boxes)
             if (self.walls.__contains__(new_box) or new_boxes.__contains__(new_box)):
                 # print("Box stuck")
                 return None # box stuck, ignore
@@ -177,13 +279,13 @@ class SokobanState:
 # goal - list of (x,y) positions
 
 tile_char = {
-    '#': 'wall',
-    '.': 'floor',
-    '?': 'goal',
-    'x': 'box',
-    '+': 'box_on_goal',
-    '@': 'player',
-    '-': 'player_on_goal'
+    'wall': '#',
+    'floor': '.',
+    'goal': '?',
+    'box': 'x',
+    'box_on_goal': '+',
+    'player': '@',
+    'player_on_goal': '-'
 }
 
 direction = ['up', 'down', 'left', 'right']
@@ -199,19 +301,18 @@ def load_testcase(tc):
     filepath = f"testcases/level{tc}.txt"
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
-            map_data = [line.strip() for line in f.readlines()]
+            map_data = [line.rstrip('\n') for line in f.readlines()]
         map_data = [line for line in map_data if line]
         if not map_data:
-            print(f"Testcase {filename} trống hoặc không hợp lệ.")
+            print(f"Testcase {tc} trống hoặc không hợp lệ.")
             return None
         return map_data
     except FileNotFoundError:
-        print(f"Không tìm thấy testcase: {filename}")
+        print(f"Không tìm thấy testcase: {tc}")
         return None
     except Exception as e:
-        print(f"Lỗi khi đọc {filename}: {e}")
+        print(f"Lỗi khi đọc {tc}: {e}")
         return None
-    pass
 
 def BrFS(init_state, goal):
     gc.collect()
@@ -450,13 +551,13 @@ def loadInfoFromMap(map):
     goal = []
     for y, row in enumerate(map):
         for x, c in enumerate(row):
-            if (c == 'x' or c == '+'):  # box hoặc box_on_goal
+            if (c == tile_char['box'] or c == tile_char['box_on_goal']):  # box hoặc box_on_goal
                 boxes.append((x, y))
-            if (c == '?' or c == '+' or c == '-'):  # goal, box_on_goal, hoặc player_on_goal
+            if (c == tile_char['goal'] or c == tile_char['box_on_goal'] or c == tile_char['player_on_goal']):  # goal, box_on_goal, hoặc player_on_goal
                 goal.append((x, y))
-            if (c == '@' or c == '-'):  # player hoặc player_on_goal
+            if (c == tile_char['player'] or c == tile_char['player_on_goal']):  # player hoặc player_on_goal
                 player = (x, y)
-            if (c == '#'):  # wall
+            if (c == tile_char['wall']):  # wall
                 walls.append((x,y))    
     return boxes, walls, player, goal
 
@@ -466,15 +567,8 @@ def solver(testcase, method, is_log=True, debug=True):
     if not init_map:
         print(f"No testcase {tc_id}")
         sys.exit(1)
-    # init_map = [
-    #     "#### ####",
-    #     "#  ###  #",
-    #     "# $ * $ #",
-    #     "#   +   #",
-    #     "### .$###",
-    #     "  # . #  ",
-    #     "  #####  "
-    # ]
+    for row in init_map:
+        print(row)
     init_boxes, init_walls, init_player, init_goal = loadInfoFromMap(init_map)
     init_state = SokobanState(init_map, init_boxes, init_walls, init_player, init_goal, [])
 
@@ -538,7 +632,6 @@ def solver(testcase, method, is_log=True, debug=True):
 
         return result['path']
 
-        
 def create_log(test_name, algorithm, path, is_solved, stats, level_info=""):
     """
     Tạo log chi tiết cho mỗi test case
