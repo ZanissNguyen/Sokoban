@@ -7,16 +7,18 @@ import tracemalloc
 import gc
 
 def render_map(walls, boxes, player, goal, map_width, map_height):
-    map_template = [[' ' for _ in range(map_width)] for _ in range(map_height)]
+    map_template = [['.' for _ in range(map_width)] for _ in range(map_height)]
     new_map = [list(row) for row in map_template]
     for (x, y) in walls: 
-        new_map[y][x] = '#'
-    for (x, y) in goal: new_map[y][x] = '.'
+        new_map[y][x] = tile_char['wall']
+    for (x, y) in goal: 
+        new_map[y][x] = tile_char['goal']
     for (x, y) in boxes:
-        new_map[y][x] = '*' if (x, y) in goal else '$'
+        new_map[y][x] = tile_char['box_on_goal'] if (x, y) in goal else tile_char['box']  # boxongoal hoặc box
     px, py = player
-    new_map[py][px] = '+' if (px, py) in goal else '@'
-    return [''.join(row) for row in new_map]
+    new_map[py][px] = tile_char['player_on_goal'] if (px, py) in goal else tile_char['player']  # player_on_goal hoặc player
+    new_map = [''.join(row) for row in new_map]
+    return new_map
 
 def is_corner_deadlock(x, y, walls, goals):
     if (x, y) in goals: 
@@ -254,9 +256,6 @@ class SokobanState:
             elif (direction == "right"):
                 new_box = (new_player[0] + 1, new_player[1])
 
-            # print(self.walls)
-            # print(new_box)
-            # print(boxes)
             if (self.walls.__contains__(new_box) or new_boxes.__contains__(new_box)):
                 # print("Box stuck")
                 return None # box stuck, ignore
@@ -280,13 +279,13 @@ class SokobanState:
 # goal - list of (x,y) positions
 
 tile_char = {
-    '#': 'wall',
-    ' ': 'floor',
-    '.': 'goal',
-    '$': 'box',
-    '*': 'box_on_goal',
-    '@': 'player',
-    '+': 'player_on_goal'
+    'wall': '#',
+    'floor': '.',
+    'goal': '?',
+    'box': 'x',
+    'box_on_goal': '+',
+    'player': '@',
+    'player_on_goal': '-'
 }
 
 direction = ['up', 'down', 'left', 'right']
@@ -294,12 +293,26 @@ direction = ['up', 'down', 'left', 'right']
 def load_testcase(tc):
     # return map, start, goal from testcases/tc_<id>.txt
     # parse it to global variables
-
+    # return MAP ONLY
     # load file and parse it
     # first line: width height
     # following lines: map
-
-    pass
+    #I think no need for width height info.
+    filepath = f"testcases/level{tc}.txt"
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            map_data = [line.rstrip('\n') for line in f.readlines()]
+        map_data = [line for line in map_data if line]
+        if not map_data:
+            print(f"Testcase {tc} trống hoặc không hợp lệ.")
+            return None
+        return map_data
+    except FileNotFoundError:
+        print(f"Không tìm thấy testcase: {tc}")
+        return None
+    except Exception as e:
+        print(f"Lỗi khi đọc {tc}: {e}")
+        return None
 
 def BrFS(init_state, goal):
     gc.collect()
@@ -538,31 +551,24 @@ def loadInfoFromMap(map):
     goal = []
     for y, row in enumerate(map):
         for x, c in enumerate(row):
-            if (c == '$' or c == '*'):
+            if (c == tile_char['box'] or c == tile_char['box_on_goal']):  # box hoặc box_on_goal
                 boxes.append((x, y))
-            if (c == '.' or c == '*' or c == '+'):
+            if (c == tile_char['goal'] or c == tile_char['box_on_goal'] or c == tile_char['player_on_goal']):  # goal, box_on_goal, hoặc player_on_goal
                 goal.append((x, y))
-            if (c == '@' or c == '+'):
+            if (c == tile_char['player'] or c == tile_char['player_on_goal']):  # player hoặc player_on_goal
                 player = (x, y)
-            if (c == '#'): 
+            if (c == tile_char['wall']):  # wall
                 walls.append((x,y))    
     return boxes, walls, player, goal
 
 # via UI pygame collect testcase, method 
 def solver(testcase, method, is_log=True, debug=True):
-    # init_map = load_testcase(testcase)
-    # if not init_map:
-    #     print(f"No testcase {tc_id}")
-    #     sys.exit(1)
-    init_map = [
-        "#### ####",
-        "#  ###  #",
-        "# $ * $ #",
-        "#   +   #",
-        "### .$###",
-        "  # . #  ",
-        "  #####  "
-    ]
+    init_map = load_testcase(testcase)
+    if not init_map:
+        print(f"No testcase {tc_id}")
+        sys.exit(1)
+    for row in init_map:
+        print(row)
     init_boxes, init_walls, init_player, init_goal = loadInfoFromMap(init_map)
     init_state = SokobanState(init_map, init_boxes, init_walls, init_player, init_goal, [])
 
@@ -626,7 +632,6 @@ def solver(testcase, method, is_log=True, debug=True):
 
         return result['path']
 
-        
 def create_log(test_name, algorithm, path, is_solved, stats, level_info=""):
     """
     Tạo log chi tiết cho mỗi test case

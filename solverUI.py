@@ -16,19 +16,19 @@ def drawUI(map):
     # without pygame:
     for y, row in enumerate(map):
         for x, c in enumerate(row):
-            if c == "#":
+            if c == tile_char['wall']:  # wall
                 screen.blit(wall, (x * tile_size, y * tile_size))
-            elif c == "+":
+            elif c == tile_char['player_on_goal']:  # player_on_goal
                 screen.blit(playerInGoal, (x * tile_size, y * tile_size))
-            elif c == "@":
+            elif c == tile_char['player']:  # player
                 screen.blit(player, (x * tile_size, y * tile_size))
-            elif c == "*":
+            elif c == tile_char['box_on_goal']:  # box_on_goal
                 screen.blit(boxInGoal, (x * tile_size, y * tile_size))
-            elif c == "$":
-                    screen.blit(box, (x * tile_size, y * tile_size))
-            elif c == ".":
+            elif c == tile_char['box']:  # box
+                screen.blit(box, (x * tile_size, y * tile_size))
+            elif c == tile_char['goal']:  # goal
                 screen.blit(goal, (x * tile_size, y * tile_size))
-            else:
+            else:  # available_move (.) hoặc các ký tự khác
                 screen.blit(tiles, (x * tile_size, y * tile_size))
 
     pygame.display.update()
@@ -56,16 +56,8 @@ if __name__ == "__main__":
     method = sys.argv[2]
     print(f"Running testcase {tc_id} using {method}")
 
-    # init_map = load_testcase(tc_id)
-    init_map = [
-        "#### ####",
-        "#  ###  #",
-        "# $ * $ #",
-        "#   +   #",
-        "### .$###",
-        "  # . #  ",
-        "  #####  "
-    ]
+    init_map = load_testcase(tc_id)
+    
     height = len(init_map)
     width = len(init_map[0])
     overhigh = 9999
