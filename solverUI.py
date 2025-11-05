@@ -46,6 +46,8 @@ def replay_path_UI(init_state, path):
         drawUI(state.map)
         result.append(state)
 
+    print("Replay finished. final path: ", path)
+
 if __name__ == "__main__":
     
     if len(sys.argv) < 3:
