@@ -1,0 +1,22 @@
+================================================================================
+SOKOBAN SOLVER - DETAILED ANALYSIS
+================================================================================
+Thời gian: 2025-10-25 14:06:16
+Test Case: 14
+Thuật toán: BrFS
+Thông tin Level: 
+--------------------------------------------------------------------------------
+TÌM THẤY LỜI GIẢI:
+Số bước: 164
+Đường đi: up -> up -> up -> up -> right -> right -> up -> right -> up -> left -> down -> down -> left -> left -> up -> up -> up -> up -> right -> right -> down -> down -> left -> right -> up -> up -> left -> left -> down -> down -> down -> down -> right -> right -> up -> right -> up -> left -> left -> right -> down -> down -> left -> left -> down -> down -> right -> right -> up -> up -> up -> right -> up -> left -> up -> up -> left -> left -> down -> down -> down -> down -> right -> right -> up -> up -> left -> right -> down -> down -> down -> down -> left -> left -> down -> left -> down -> down -> right -> up -> right -> right -> up -> up -> left -> left -> down -> left -> down -> right -> up -> up -> right -> right -> up -> up -> left -> left -> down -> down -> up -> up -> up -> up -> right -> right -> up -> up -> left -> left -> down -> down -> down -> down -> right -> right -> up -> right -> up -> left -> left -> right -> down -> down -> left -> left -> up -> up -> down -> down -> right -> right -> down -> down -> left -> left -> up -> up -> down -> down -> down -> left -> down -> down -> right -> up -> up -> up -> right -> right -> down -> down -> left -> right -> up -> up -> left -> left -> down -> left -> down -> down -> right -> up
+--------------------------------------------------------------------------------
+THỐNG KÊ HIỆU NĂNG:
+• Nodes đã mở rộng: 41,249
+• Nodes đã tạo: 95,814
+• Nodes truy cập lại: 52,127
+• Memory sử dụng: 72.033 MB
+• Thời gian thực hiện: 26.301969 giây
+• Hiệu suất (steps/nodes): 0.003976
+
+================================================================================
+

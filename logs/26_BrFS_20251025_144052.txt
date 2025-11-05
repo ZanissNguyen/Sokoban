@@ -1,0 +1,22 @@
+================================================================================
+SOKOBAN SOLVER - DETAILED ANALYSIS
+================================================================================
+Thời gian: 2025-10-25 14:40:52
+Test Case: 26
+Thuật toán: BrFS
+Thông tin Level: 
+--------------------------------------------------------------------------------
+TÌM THẤY LỜI GIẢI:
+Số bước: 176
+Đường đi: left -> up -> up -> right -> right -> right -> right -> down -> right -> up -> left -> left -> left -> left -> left -> down -> down -> right -> right -> up -> down -> left -> left -> up -> up -> right -> right -> right -> right -> down -> right -> right -> up -> left -> up -> up -> right -> up -> up -> left -> down -> left -> left -> up -> left -> left -> down -> right -> down -> down -> down -> left -> left -> up -> right -> down -> right -> right -> right -> down -> right -> right -> up -> left -> left -> left -> left -> left -> up -> left -> down -> down -> left -> down -> right -> down -> right -> right -> up -> up -> down -> down -> left -> left -> up -> up -> up -> right -> right -> right -> right -> down -> right -> right -> up -> left -> left -> left -> left -> right -> right -> right -> up -> up -> right -> up -> up -> left -> down -> down -> down -> up -> up -> left -> left -> up -> left -> left -> down -> right -> down -> down -> down -> right -> right -> down -> right -> right -> up -> left -> left -> right -> up -> up -> up -> left -> left -> up -> left -> left -> down -> right -> right -> right -> left -> left -> down -> down -> left -> left -> down -> down -> down -> down -> right -> right -> up -> up -> up -> down -> down -> down -> left -> left -> up -> up -> up -> right -> left -> down -> down -> down -> right -> right -> up -> left
+--------------------------------------------------------------------------------
+THỐNG KÊ HIỆU NĂNG:
+• Nodes đã mở rộng: 202,700
+• Nodes đã tạo: 509,511
+• Nodes truy cập lại: 292,701
+• Memory sử dụng: 400.521 MB
+• Thời gian thực hiện: 160.297963 giây
+• Hiệu suất (steps/nodes): 0.000868
+
+================================================================================
+

@@ -46,6 +46,8 @@ def replay_path_UI(init_state, path):
         drawUI(state.map)
         result.append(state)
 
+    print("Replay finished. final path: ", path)
+
 if __name__ == "__main__":
     
     if len(sys.argv) < 3:
@@ -80,12 +82,12 @@ if __name__ == "__main__":
     playerInGoal = pygame.transform.scale(pygame.image.load('assets/playerInGoal.bmp'), (tile_size,tile_size))
     boxInGoal = pygame.transform.scale(pygame.image.load('assets/boxInGoal.bmp'), (tile_size,tile_size))
 
-    result = solver(tc_id, method)
-
     screen = pygame.display.set_mode((tile_size*width, tile_size*height))
     pygame.display.set_caption("Sokoban Solver")
     pygame.display.update()
 
+    drawUI(init_map)
+    result = solver(tc_id, method)
     replay_path_UI(init_state, result)
         
     event_list = pygame.event.get()
@@ -93,5 +95,9 @@ if __name__ == "__main__":
     while True:
         event_list = pygame.event.get()
         for event in event_list:
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    replay_path_UI(init_state, result)
+
             if event.type == pygame.QUIT:
                 pygame.quit()
